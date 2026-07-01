@@ -2,637 +2,117 @@
 
 package com.bluepilot.remote.ui.screens.multimedia
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SettingsBluetooth
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SettingsRemote
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.VolumeDown
 import androidx.compose.material.icons.filled.VolumeMute
 import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.bluepilot.remote.ui.theme.*
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.bluepilot.remote.ui.components.BluePilotBackground
+import com.bluepilot.remote.ui.components.GlassCard
+import com.bluepilot.remote.ui.components.PrimaryGlowButton
+import com.bluepilot.remote.ui.components.RemotePadButton
+import com.bluepilot.remote.ui.components.ScreenHeader
+import com.bluepilot.remote.ui.components.StatusPill
+import com.bluepilot.remote.ui.theme.OnSurfaceVariant
+import com.bluepilot.remote.ui.theme.PrimaryDark
 import com.bluepilot.remote.viewmodel.RemoteControlViewModel
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.ui.platform.LocalConfiguration
 
-/**
- * Multimedia screen with media controls, D-pad, and touchpad
- * Supports responsive portrait and landscape layouts
- */
 @Composable
 fun MultimediaScreen(
     onNavigateBack: () -> Unit,
     remote: RemoteControlViewModel = hiltViewModel()
 ) {
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            // Top App Bar
-            TopAppBar(
-                onMenuClick = { },
-                onNavigateBack = onNavigateBack
-            )
-
-            if (isLandscape) {
-                LandscapeContent(remote)
-            } else {
-                PortraitContent(remote)
+    val connection by remote.connectionState.collectAsState()
+    BluePilotBackground {
+        Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            ScreenHeader("Media Controls", "Playback, volume, navigation and touchpad") {
+                IconButton(onClick = onNavigateBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = PrimaryDark) }
             }
-        }
+            StatusPill(connection.state, connection.state.name.replace('_', ' '), Modifier.align(Alignment.CenterHorizontally))
 
-        // Bottom Navigation Bar
-        BottomNavigationBar()
-    }
-}
-
-@Composable
-private fun TopAppBar(
-    onMenuClick: () -> Unit,
-    onNavigateBack: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onMenuClick) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = "Menu",
-                    tint = Primary
-                )
+            GlassCard(Modifier.fillMaxWidth()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    RemotePadButton("Prev", { remote.mediaPrevious() }, Modifier.weight(1f), Icons.Default.SkipPrevious)
+                    RemotePadButton("Rew", { remote.mediaPrevious() }, Modifier.weight(1f), Icons.Default.FastRewind)
+                    PrimaryGlowButton("Play", { remote.mediaPlayPause() }, Modifier.weight(1.3f), Icons.Default.PlayArrow)
+                    RemotePadButton("Fwd", { remote.mediaNext() }, Modifier.weight(1f), Icons.Default.FastForward)
+                    RemotePadButton("Next", { remote.mediaNext() }, Modifier.weight(1f), Icons.Default.SkipNext)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    RemotePadButton("Stop", { remote.mediaStop() }, Modifier.weight(1f), Icons.Default.Stop)
+                    RemotePadButton("Mute", { remote.mute() }, Modifier.weight(1f), Icons.Default.VolumeMute)
+                    RemotePadButton("Vol -", { remote.volumeDown() }, Modifier.weight(1f), Icons.Default.VolumeDown)
+                    RemotePadButton("Vol +", { remote.volumeUp() }, Modifier.weight(1f), Icons.Default.VolumeUp)
+                }
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "BluePilot",
-                color = Primary,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-        }
 
-        // Connection Status Pill
-        Surface(
-            shape = CircleShape,
-            color = SurfaceContainer
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            GlassCard(Modifier.fillMaxWidth().weight(1f)) {
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF10B981))
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Connected",
-                    color = OnSurfaceVariant,
-                    style = MaterialTheme.typography.labelMedium
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun PortraitContent(remote: RemoteControlViewModel) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Media Controls
-        MediaControlsCard(
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        // Touchpad
-        TouchpadCard(
-            remote = remote,
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        )
-
-        // D-pad and Navigation
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            DPadCard(
-                modifier = Modifier.weight(1f)
-            )
-            NavigationCard(
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
-}
-
-@Composable
-private fun LandscapeContent(remote: RemoteControlViewModel) {
-    Row(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Left zone: Media and Volume controls
-        Column(
-            modifier = Modifier
-                .weight(0.35f)
-                .fillMaxHeight(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            MediaControlsCard(
-                modifier = Modifier.fillMaxWidth()
-            )
-            VolumeControlsCard(
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
-        // Center zone: Touchpad
-        TouchpadCard(
-            remote = remote,
-            modifier = Modifier
-                .weight(0.35f)
-                .fillMaxHeight()
-        )
-
-        // Right zone: D-pad and Play/Pause
-        Column(
-            modifier = Modifier
-                .weight(0.3f)
-                .fillMaxHeight(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            DPadCard(
-                modifier = Modifier.fillMaxWidth()
-            )
-            PlayPauseCard(
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-    }
-}
-
-@Composable
-private fun MediaControlsCard(
-    modifier: Modifier = Modifier
-) {
-    val remote: RemoteControlViewModel = hiltViewModel()
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = SurfaceContainerLow
-        ),
-        border = BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.2f))
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Media Controls",
-                color = OnSurface,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                MediaButton(
-                    icon = Icons.Default.SkipPrevious,
-                    onClick = { remote.mediaPrevious() }
-                )
-                
-                MediaButton(
-                    icon = Icons.Default.FastRewind,
-                    onClick = { remote.mediaPrevious() }
-                )
-                
-                PlayPauseButton(
-                    isPlaying = false,
-                    onClick = { remote.mediaPlayPause() }
-                )
-                
-                MediaButton(
-                    icon = Icons.Default.FastForward,
-                    onClick = { remote.mediaNext() }
-                )
-                
-                MediaButton(
-                    icon = Icons.Default.SkipNext,
-                    onClick = { remote.mediaNext() }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun VolumeControlsCard(
-    modifier: Modifier = Modifier
-) {
-    val remote: RemoteControlViewModel = hiltViewModel()
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = SurfaceContainerLow
-        ),
-        border = BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.2f))
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Volume",
-                color = OnSurface,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                MediaButton(
-                    icon = Icons.Default.VolumeDown,
-                    onClick = { remote.volumeDown() }
-                )
-                
-                MediaButton(
-                    icon = Icons.Default.VolumeMute,
-                    onClick = { remote.mute() }
-                )
-                
-                MediaButton(
-                    icon = Icons.Default.VolumeUp,
-                    onClick = { remote.volumeUp() }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun TouchpadCard(
-    remote: RemoteControlViewModel,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.pointerInput(Unit) {
-            detectDragGestures { change, dragAmount ->
-                change.consume()
-                remote.mouseMove(dragAmount.x, dragAmount.y)
-            }
-        },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = PrimaryContainer.copy(alpha = 0.2f)
-        ),
-        border = BorderStroke(1.dp, Primary.copy(alpha = 0.1f))
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(
-                    imageVector = Icons.Default.SettingsRemote,
-                    contentDescription = "Touchpad",
-                    tint = Primary.copy(alpha = 0.4f),
-                    modifier = Modifier.size(64.dp)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Touchpad",
-                    color = Primary.copy(alpha = 0.6f),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DPadCard(
-    modifier: Modifier = Modifier
-) {
-    val remote: RemoteControlViewModel = hiltViewModel()
-    Card(
-        modifier = modifier.aspectRatio(1f),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = SurfaceContainerLow
-        ),
-        border = BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.2f))
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize().padding(16.dp)
-        ) {
-            // D-pad layout
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                DPadButton(
-                    icon = Icons.Default.ArrowBack,
-                    onClick = { remote.keyLabel("Up") }
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .pointerInput(Unit) {
+                            detectDragGestures { change, dragAmount ->
+                                change.consume()
+                                remote.mouseMove(dragAmount.x, dragAmount.y)
+                            }
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
-                    DPadButton(
-                        icon = Icons.Default.ArrowBack,
-                        onClick = { remote.keyLabel("Left") }
-                    )
-                    
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(OutlineVariant.copy(alpha = 0.3f))
-                    )
-                    
-                    DPadButton(
-                        icon = Icons.Default.ArrowForward,
-                        onClick = { remote.keyLabel("Right") }
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.TouchApp, contentDescription = null, tint = PrimaryDark, modifier = Modifier.size(58.dp))
+                        Spacer(Modifier.height(8.dp))
+                        Text("Mini touchpad", color = OnSurfaceVariant)
+                    }
                 }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                DPadButton(
-                    icon = Icons.Default.ArrowForward,
-                    onClick = { remote.keyLabel("Down") }
-                )
+            }
+
+            GlassCard(Modifier.fillMaxWidth()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    RemotePadButton("Back", { remote.keyLabel("Back") }, Modifier.weight(1f), Icons.Default.ArrowBack)
+                    RemotePadButton("Home", { remote.keyLabel("Home") }, Modifier.weight(1f), Icons.Default.Home)
+                    RemotePadButton("Menu", { remote.keyLabel("Menu") }, Modifier.weight(1f), Icons.Default.Menu)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    RemotePadButton("←", { remote.keyLabel("Left") }, Modifier.weight(1f))
+                    RemotePadButton("↑", { remote.keyLabel("Up") }, Modifier.weight(1f))
+                    RemotePadButton("↓", { remote.keyLabel("Down") }, Modifier.weight(1f))
+                    RemotePadButton("→", { remote.keyLabel("Right") }, Modifier.weight(1f))
+                }
             }
         }
-    }
-}
-
-@Composable
-private fun NavigationCard(
-    modifier: Modifier = Modifier
-) {
-    val remote: RemoteControlViewModel = hiltViewModel()
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = SurfaceContainerLow
-        ),
-        border = BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.2f))
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Navigation",
-                color = OnSurface,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                NavButton(text = "Back", onClick = { remote.keyLabel("Back") })
-                NavButton(text = "Home", onClick = { remote.keyLabel("Home") })
-                NavButton(text = "Menu", onClick = { remote.keyLabel("Menu") })
-            }
-        }
-    }
-}
-
-@Composable
-private fun PlayPauseCard(
-    modifier: Modifier = Modifier
-) {
-    val remote: RemoteControlViewModel = hiltViewModel()
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = SurfaceContainerLow
-        ),
-        border = BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.2f))
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            PlayPauseButton(
-                isPlaying = false,
-                onClick = { remote.mediaPlayPause() },
-                large = true
-            )
-        }
-    }
-}
-
-@Composable
-private fun MediaButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit
-) {
-    IconButton(
-        onClick = onClick,
-        modifier = Modifier.size(56.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = OnSurface,
-            modifier = Modifier.size(32.dp)
-        )
-    }
-}
-
-@Composable
-private fun DPadButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit
-) {
-    IconButton(
-        onClick = onClick,
-        modifier = Modifier.size(48.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = OnSurface,
-            modifier = Modifier.size(24.dp)
-        )
-    }
-}
-
-@Composable
-private fun NavButton(
-    text: String,
-    onClick: () -> Unit
-) {
-    Button(
-        onClick = onClick,
-        modifier = Modifier.size(64.dp),
-        shape = CircleShape,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = SurfaceContainerHighest,
-            contentColor = OnSurface
-        ),
-        contentPadding = PaddingValues(0.dp)
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelSmall
-        )
-    }
-}
-
-@Composable
-private fun PlayPauseButton(
-    isPlaying: Boolean,
-    onClick: () -> Unit,
-    large: Boolean = false
-) {
-    val size = if (large) 72.dp else 56.dp
-    val iconSize = if (large) 40.dp else 32.dp
-    
-    Button(
-        onClick = onClick,
-        modifier = Modifier.size(size),
-        shape = CircleShape,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Primary,
-            contentColor = OnPrimary
-        )
-    ) {
-        Icon(
-            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-            contentDescription = if (isPlaying) "Pause" else "Play",
-            modifier = Modifier.size(iconSize)
-        )
-    }
-}
-
-@Composable
-private fun BottomNavigationBar() {
-    NavigationBar(
-        modifier = Modifier.fillMaxWidth(),
-        containerColor = SurfaceContainer,
-        tonalElevation = 0.dp
-    ) {
-        NavigationBarItem(
-            selected = false,
-            onClick = { },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.SettingsRemote,
-                    contentDescription = "Controls"
-                )
-            },
-            label = { Text("Controls") }
-        )
-
-        NavigationBarItem(
-            selected = true,
-            onClick = { },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.SettingsBluetooth,
-                    contentDescription = "Multimedia"
-                )
-            },
-            label = { Text("Multimedia") }
-        )
-
-        NavigationBarItem(
-            selected = false,
-            onClick = { },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.SettingsBluetooth,
-                    contentDescription = "Gamepad"
-                )
-            },
-            label = { Text("Gamepad") }
-        )
-
-        NavigationBarItem(
-            selected = false,
-            onClick = { },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Settings"
-                )
-            },
-            label = { Text("Settings") }
-        )
     }
 }

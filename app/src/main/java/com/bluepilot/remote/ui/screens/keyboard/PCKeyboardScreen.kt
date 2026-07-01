@@ -2,572 +2,148 @@
 
 package com.bluepilot.remote.ui.screens.keyboard
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Keyboard
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.SettingsBluetooth
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SettingsRemote
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
-import com.bluepilot.remote.ui.theme.*
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.bluepilot.remote.ui.components.BluePilotBackground
+import com.bluepilot.remote.ui.components.GhostButton
+import com.bluepilot.remote.ui.components.GlassCard
+import com.bluepilot.remote.ui.components.PrimaryGlowButton
+import com.bluepilot.remote.ui.components.RemotePadButton
+import com.bluepilot.remote.ui.components.ScreenHeader
+import com.bluepilot.remote.ui.components.StatusPill
+import com.bluepilot.remote.ui.theme.OnSurface
+import com.bluepilot.remote.ui.theme.OnSurfaceVariant
+import com.bluepilot.remote.ui.theme.OutlineVariant
+import com.bluepilot.remote.ui.theme.PrimaryDark
 import com.bluepilot.remote.viewmodel.RemoteControlViewModel
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.draw.clip
 
-/**
- * PC Keyboard screen with full QWERTY layout
- * Supports responsive portrait and landscape layouts
- */
 @Composable
 fun PCKeyboardScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    remote: RemoteControlViewModel = hiltViewModel()
 ) {
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
+    val connection by remote.connectionState.collectAsState()
+    var text by remember { mutableStateOf("") }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background)
-    ) {
+    BluePilotBackground {
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Top App Bar
-            TopAppBar(
-                onMenuClick = { },
-                onNavigateBack = onNavigateBack
-            )
-
-            if (isLandscape) {
-                LandscapeContent()
-            } else {
-                PortraitContent()
+            ScreenHeader("PC Keyboard", "Full HID keyboard control") {
+                IconButton(onClick = onNavigateBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = PrimaryDark) }
             }
-        }
+            StatusPill(connection.state, connection.state.name.replace('_', ' '), Modifier.align(Alignment.CenterHorizontally))
 
-        // Bottom Navigation Bar
-        BottomNavigationBar()
-    }
-}
-
-@Composable
-private fun TopAppBar(
-    onMenuClick: () -> Unit,
-    onNavigateBack: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onMenuClick) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = "Menu",
-                    tint = Primary
+            GlassCard(Modifier.fillMaxWidth()) {
+                Text("TEXT BEAM", color = PrimaryDark, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Type text here and send to PC") },
+                    singleLine = false,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PrimaryDark,
+                        unfocusedBorderColor = OutlineVariant,
+                        focusedTextColor = OnSurface,
+                        unfocusedTextColor = OnSurface
+                    )
                 )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    PrimaryGlowButton("Send text", { remote.text(text); text = "" }, Modifier.weight(1f), Icons.Default.Send, text.isNotBlank())
+                    GhostButton("Enter", { remote.enter() }, Modifier.weight(1f))
+                    GhostButton("Backspace", { remote.backspace() }, Modifier.weight(1f))
+                }
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "PC Keyboard",
-                color = Primary,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-        }
 
-        // Connection Status Pill
-        Surface(
-            shape = RoundedCornerShape(999.dp),
-            color = SurfaceContainer
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(Color(0xFF10B981))
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Connected",
-                    color = OnSurfaceVariant,
-                    style = MaterialTheme.typography.labelMedium
-                )
+            GlassCard(Modifier.fillMaxWidth()) {
+                Text("FUNCTION KEYS", color = PrimaryDark, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                listOf((1..6), (7..12)).forEach { range ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        range.forEach { n -> KeyButton("F$n", { remote.keyLabel("F$n") }, Modifier.weight(1f)) }
+                    }
+                }
             }
+
+            GlassCard(Modifier.fillMaxWidth()) {
+                KeyboardRows(remote)
+            }
+
+            GlassCard(Modifier.fillMaxWidth()) {
+                Text("NAVIGATION", color = PrimaryDark, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    KeyButton("Home", { remote.keyLabel("Home") }, Modifier.weight(1f))
+                    KeyButton("Menu", { remote.keyLabel("Menu") }, Modifier.weight(1f))
+                    KeyButton("Esc", { remote.escape() }, Modifier.weight(1f))
+                    KeyButton("Tab", { remote.tab() }, Modifier.weight(1f))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    KeyButton("←", { remote.keyLabel("Left") }, Modifier.weight(1f))
+                    KeyButton("↑", { remote.keyLabel("Up") }, Modifier.weight(1f))
+                    KeyButton("↓", { remote.keyLabel("Down") }, Modifier.weight(1f))
+                    KeyButton("→", { remote.keyLabel("Right") }, Modifier.weight(1f))
+                }
+            }
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
 
 @Composable
-private fun PortraitContent() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Touchpad at top (compact)
-        CompactTouchpad(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(120.dp)
-        )
-
-        // Full keyboard below
-        FullKeyboard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        )
-    }
-}
-
-@Composable
-private fun LandscapeContent() {
-    Row(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Left side: Compact touchpad
-        Column(
-            modifier = Modifier
-                .width(200.dp)
-                .fillMaxHeight()
-        ) {
-            CompactTouchpad(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-            )
-        }
-
-        // Right side: Wide desktop-style keyboard
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-        ) {
-            WideKeyboard()
+private fun KeyboardRows(remote: RemoteControlViewModel) {
+    val rows = listOf(
+        listOf("1","2","3","4","5","6","7","8","9","0"),
+        listOf("Q","W","E","R","T","Y","U","I","O","P"),
+        listOf("A","S","D","F","G","H","J","K","L"),
+        listOf("Z","X","C","V","B","N","M")
+    )
+    rows.forEach { row ->
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            row.forEach { label -> KeyButton(label, { remote.keyLabel(label) }, Modifier.weight(1f)) }
         }
     }
-}
-
-@Composable
-private fun CompactTouchpad(
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = PrimaryContainer.copy(alpha = 0.2f)
-        ),
-        border = BorderStroke(1.dp, Primary.copy(alpha = 0.1f))
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Keyboard,
-                contentDescription = "Touchpad",
-                tint = Primary.copy(alpha = 0.4f),
-                modifier = Modifier.size(48.dp)
-            )
-        }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        KeyButton("Ctrl", { remote.keyLabel("Ctrl") }, Modifier.weight(1f))
+        KeyButton("Alt", { remote.keyLabel("Alt") }, Modifier.weight(1f))
+        PrimaryGlowButton("Space", { remote.space() }, Modifier.weight(2.2f), Icons.Default.Keyboard)
+        KeyButton("Enter", { remote.enter() }, Modifier.weight(1.4f))
     }
 }
 
 @Composable
-private fun FullKeyboard(
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        // Function row (Esc, F1-F12)
-        FunctionRow()
-
-        // Number row
-        NumberRow()
-
-        // QWERTY rows
-        KeyboardRow(keys = listOf("Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"))
-        KeyboardRow(keys = listOf("A", "S", "D", "F", "G", "H", "J", "K", "L"))
-        KeyboardRow(keys = listOf("Z", "X", "C", "V", "B", "N", "M"))
-
-        // Bottom row with modifiers
-        ModifierRow()
-
-        // Space and arrows
-        SpaceRow()
-    }
-}
-
-@Composable
-private fun WideKeyboard() {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        // Function row across width
-        WideFunctionRow()
-
-        // Number row
-        NumberRow()
-
-        // QWERTY rows
-        KeyboardRow(keys = listOf("Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"))
-        KeyboardRow(keys = listOf("A", "S", "D", "F", "G", "H", "J", "K", "L"))
-        KeyboardRow(keys = listOf("Z", "X", "C", "V", "B", "N", "M"))
-
-        // Bottom row with modifiers
-        WideModifierRow()
-
-        // Space and arrows
-        WideSpaceRow()
-    }
-}
-
-@Composable
-private fun FunctionRow() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        FunctionKey(text = "Esc", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F1", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F2", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F3", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F4", modifier = Modifier.weight(1f))
-    }
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        FunctionKey(text = "F5", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F6", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F7", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F8", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F9", modifier = Modifier.weight(1f))
-    }
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        FunctionKey(text = "F10", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F11", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F12", modifier = Modifier.weight(1f))
-        FunctionKey(text = "Del", modifier = Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun WideFunctionRow() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        FunctionKey(text = "Esc", modifier = Modifier.weight(0.5f))
-        FunctionKey(text = "F1", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F2", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F3", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F4", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F5", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F6", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F7", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F8", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F9", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F10", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F11", modifier = Modifier.weight(1f))
-        FunctionKey(text = "F12", modifier = Modifier.weight(1f))
-        FunctionKey(text = "Del", modifier = Modifier.weight(0.5f))
-    }
-}
-
-@Composable
-private fun NumberRow() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        KeyboardKey(text = "1", modifier = Modifier.weight(1f))
-        KeyboardKey(text = "2", modifier = Modifier.weight(1f))
-        KeyboardKey(text = "3", modifier = Modifier.weight(1f))
-        KeyboardKey(text = "4", modifier = Modifier.weight(1f))
-        KeyboardKey(text = "5", modifier = Modifier.weight(1f))
-        KeyboardKey(text = "6", modifier = Modifier.weight(1f))
-        KeyboardKey(text = "7", modifier = Modifier.weight(1f))
-        KeyboardKey(text = "8", modifier = Modifier.weight(1f))
-        KeyboardKey(text = "9", modifier = Modifier.weight(1f))
-        KeyboardKey(text = "0", modifier = Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun KeyboardRow(
-    keys: List<String>
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        keys.forEach { key ->
-            KeyboardKey(
-                text = key,
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
-}
-
-@Composable
-private fun ModifierRow() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        ModifierKey(text = "Ctrl", modifier = Modifier.weight(1.5f))
-        ModifierKey(text = "Win", modifier = Modifier.weight(1f))
-        ModifierKey(text = "Alt", modifier = Modifier.weight(1f))
-        KeyboardKey(text = "Space", modifier = Modifier.weight(3f))
-        ModifierKey(text = "Alt", modifier = Modifier.weight(1f))
-        ModifierKey(text = "Ctrl", modifier = Modifier.weight(1.5f))
-    }
-}
-
-@Composable
-private fun WideModifierRow() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        ModifierKey(text = "Ctrl", modifier = Modifier.weight(1f))
-        ModifierKey(text = "Win", modifier = Modifier.weight(1f))
-        ModifierKey(text = "Alt", modifier = Modifier.weight(1f))
-        KeyboardKey(text = "Space", modifier = Modifier.weight(4f))
-        ModifierKey(text = "AltGr", modifier = Modifier.weight(1f))
-        ModifierKey(text = "Win", modifier = Modifier.weight(1f))
-        ModifierKey(text = "Menu", modifier = Modifier.weight(1f))
-        ModifierKey(text = "Ctrl", modifier = Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun SpaceRow() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        ModifierKey(text = "Shift", modifier = Modifier.weight(1.5f))
-        KeyboardKey(text = "Enter", modifier = Modifier.weight(2f))
-        ArrowKeys(modifier = Modifier.weight(2f))
-    }
-}
-
-@Composable
-private fun WideSpaceRow() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        ModifierKey(text = "Shift", modifier = Modifier.weight(1f))
-        ModifierKey(text = "Ctrl", modifier = Modifier.weight(1f))
-        KeyboardKey(text = "Enter", modifier = Modifier.weight(2f))
-        ArrowKeys(modifier = Modifier.weight(2f))
-        ModifierKey(text = "Shift", modifier = Modifier.weight(1f))
-        ModifierKey(text = "Ctrl", modifier = Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun KeyboardKey(
-    text: String,
-    modifier: Modifier = Modifier
-) {
-    val remote: RemoteControlViewModel = hiltViewModel()
-    Button(
-        onClick = { remote.keyLabel(text) },
-        modifier = modifier.height(48.dp),
-        shape = RoundedCornerShape(8.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Primary,
-            contentColor = OnPrimary
-        ),
-        contentPadding = PaddingValues(0.dp)
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Medium
-        )
-    }
-}
-
-@Composable
-private fun FunctionKey(
-    text: String,
-    modifier: Modifier = Modifier
-) {
-    val remote: RemoteControlViewModel = hiltViewModel()
-    Button(
-        onClick = { remote.keyLabel(text) },
-        modifier = modifier.height(40.dp),
-        shape = RoundedCornerShape(8.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = SurfaceContainerHighest,
-            contentColor = OnSurface
-        ),
-        contentPadding = PaddingValues(0.dp)
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium
-        )
-    }
-}
-
-@Composable
-private fun ModifierKey(
-    text: String,
-    modifier: Modifier = Modifier
-) {
-    val remote: RemoteControlViewModel = hiltViewModel()
-    Button(
-        onClick = { remote.keyLabel(text) },
-        modifier = modifier.height(48.dp),
-        shape = RoundedCornerShape(8.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = SurfaceContainerHighest,
-            contentColor = OnSurface
-        ),
-        contentPadding = PaddingValues(0.dp)
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium
-        )
-    }
-}
-
-@Composable
-private fun ArrowKeys(
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        ArrowKey(text = "↑")
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            ArrowKey(text = "←")
-            ArrowKey(text = "↓")
-            ArrowKey(text = "→")
-        }
-    }
-}
-
-@Composable
-private fun ArrowKey(
-    text: String
-) {
-    val remote: RemoteControlViewModel = hiltViewModel()
-    Button(
-        onClick = { remote.keyLabel(text) },
-        modifier = Modifier.size(32.dp),
-        shape = RoundedCornerShape(6.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = SurfaceContainerHighest,
-            contentColor = OnSurface
-        ),
-        contentPadding = PaddingValues(0.dp)
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelSmall
-        )
-    }
-}
-
-@Composable
-private fun BottomNavigationBar() {
-    NavigationBar(
-        modifier = Modifier.fillMaxWidth(),
-        containerColor = SurfaceContainer,
-        tonalElevation = 0.dp
-    ) {
-        NavigationBarItem(
-            selected = false,
-            onClick = { },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.SettingsRemote,
-                    contentDescription = "Controls"
-                )
-            },
-            label = { Text("Controls") }
-        )
-
-        NavigationBarItem(
-            selected = true,
-            onClick = { },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Keyboard,
-                    contentDescription = "Keyboard"
-                )
-            },
-            label = { Text("Keyboard") }
-        )
-
-        NavigationBarItem(
-            selected = false,
-            onClick = { },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.SettingsBluetooth,
-                    contentDescription = "Gamepad"
-                )
-            },
-            label = { Text("Gamepad") }
-        )
-
-        NavigationBarItem(
-            selected = false,
-            onClick = { },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Settings"
-                )
-            },
-            label = { Text("Settings") }
-        )
-    }
+private fun KeyButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    RemotePadButton(text = label, onClick = onClick, modifier = modifier)
 }

@@ -2,510 +2,92 @@
 
 package com.bluepilot.remote.ui.screens.presenter
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SettingsBluetooth
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SettingsRemote
 import androidx.compose.material.icons.filled.TouchApp
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.bluepilot.remote.ui.theme.*
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.bluepilot.remote.ui.components.BluePilotBackground
+import com.bluepilot.remote.ui.components.GlassCard
+import com.bluepilot.remote.ui.components.PrimaryGlowButton
+import com.bluepilot.remote.ui.components.RemotePadButton
+import com.bluepilot.remote.ui.components.ScreenHeader
+import com.bluepilot.remote.ui.components.StatusPill
+import com.bluepilot.remote.ui.theme.OnSurfaceVariant
+import com.bluepilot.remote.ui.theme.PrimaryDark
 import com.bluepilot.remote.viewmodel.RemoteControlViewModel
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.ui.platform.LocalConfiguration
 
-/**
- * Presenter screen for presentation controls
- * Supports responsive portrait and landscape layouts
- */
 @Composable
 fun PresenterScreen(
     onNavigateBack: () -> Unit,
     remote: RemoteControlViewModel = hiltViewModel()
 ) {
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            // Top App Bar
-            TopAppBar(
-                onMenuClick = { },
-                onNavigateBack = onNavigateBack
-            )
-
-            if (isLandscape) {
-                LandscapeContent(remote)
-            } else {
-                PortraitContent(remote)
+    val connection by remote.connectionState.collectAsState()
+    BluePilotBackground {
+        Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            ScreenHeader("Presenter Mode", "Slides and pointer controls") {
+                IconButton(onClick = onNavigateBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = PrimaryDark) }
             }
-        }
+            StatusPill(connection.state, connection.state.name.replace('_', ' '), Modifier.align(Alignment.CenterHorizontally))
 
-        // Bottom Navigation Bar
-        BottomNavigationBar()
-    }
-}
-
-@Composable
-private fun TopAppBar(
-    onMenuClick: () -> Unit,
-    onNavigateBack: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onMenuClick) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = "Menu",
-                    tint = Primary
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth()) {
+                PrimaryGlowButton("Previous", { remote.keyLabel("Left") }, Modifier.weight(1f).height(96.dp), Icons.Default.ArrowBack)
+                PrimaryGlowButton("Next", { remote.keyLabel("Right") }, Modifier.weight(1f).height(96.dp), Icons.Default.ArrowForward)
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Presenter",
-                color = Primary,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-        }
 
-        // Connection Status Pill
-        Surface(
-            shape = CircleShape,
-            color = SurfaceContainer
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            GlassCard(Modifier.fillMaxWidth()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    RemotePadButton("Start", { remote.keyLabel("F5") }, Modifier.weight(1f), Icons.Default.Fullscreen)
+                    RemotePadButton("Esc", { remote.escape() }, Modifier.weight(1f))
+                    RemotePadButton("Blank", { remote.keyLabel("B") }, Modifier.weight(1f), Icons.Default.Pause)
+                }
+            }
+
+            GlassCard(Modifier.fillMaxWidth().weight(1f)) {
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF10B981))
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Connected",
-                    color = OnSurfaceVariant,
-                    style = MaterialTheme.typography.labelMedium
-                )
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .pointerInput(Unit) {
+                            detectDragGestures { change, dragAmount ->
+                                change.consume()
+                                remote.mouseMove(dragAmount.x, dragAmount.y)
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.TouchApp, null, tint = PrimaryDark, modifier = Modifier.size(72.dp))
+                        Spacer(Modifier.height(8.dp))
+                        Text("Presentation touchpad", color = OnSurfaceVariant, fontWeight = FontWeight.SemiBold)
+                        Text("Drag pointer • use slide buttons above", color = OnSurfaceVariant)
+                    }
+                }
             }
         }
-    }
-}
-
-@Composable
-private fun PortraitContent(remote: RemoteControlViewModel) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Previous/Next buttons
-        SlideNavigationCard(
-            remote = remote,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        // Presentation controls
-        PresentationControlsCard(
-            remote = remote,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        // Touchpad
-        TouchpadCard(
-            remote = remote,
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        )
-    }
-}
-
-@Composable
-private fun LandscapeContent(remote: RemoteControlViewModel) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-    Row(
-        modifier = Modifier
-            .fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Left half: Previous slide
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-        ) {
-            LargeSlideButton(
-                text = "Previous",
-                icon = Icons.Default.ArrowBack,
-                onClick = { remote.keyLabel("Left") },
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-
-        // Right half: Next slide
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-        ) {
-            LargeSlideButton(
-                text = "Next",
-                icon = Icons.Default.ArrowForward,
-                onClick = { remote.keyLabel("Right") },
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-    }
-
-    // Compact top row with controls (overlay)
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .padding(horizontal = 32.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            CompactControlButton(
-                text = "Start",
-                onClick = { remote.keyLabel("F5") }
-            )
-            CompactControlButton(
-                text = "Esc",
-                onClick = { remote.escape() }
-            )
-            CompactControlButton(
-                text = "Blank",
-                onClick = { remote.keyLabel("B") }
-            )
-            CompactControlButton(
-                icon = Icons.Default.TouchApp,
-                onClick = { remote.mouseClick() }
-            )
-        }
-    }
-    }
-}
-
-@Composable
-private fun SlideNavigationCard(
-    remote: RemoteControlViewModel,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = SurfaceContainerLow
-        ),
-        border = BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.2f))
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            LargeSlideButton(
-                text = "Previous",
-                icon = Icons.Default.ArrowBack,
-                onClick = { remote.keyLabel("Left") },
-                modifier = Modifier.weight(1f)
-            )
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            LargeSlideButton(
-                text = "Next",
-                icon = Icons.Default.ArrowForward,
-                onClick = { remote.keyLabel("Right") },
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
-}
-
-@Composable
-private fun PresentationControlsCard(
-    remote: RemoteControlViewModel,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = SurfaceContainerLow
-        ),
-        border = BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.2f))
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            PresentationButton(
-                text = "Start",
-                onClick = { remote.keyLabel("F5") }
-            )
-            
-            PresentationButton(
-                text = "Esc",
-                onClick = { remote.escape() }
-            )
-            
-            PresentationButton(
-                text = "Blank",
-                onClick = { remote.keyLabel("B") }
-            )
-            
-            PresentationButton(
-                icon = Icons.Default.TouchApp,
-                onClick = { remote.mouseClick() }
-            )
-        }
-    }
-}
-
-@Composable
-private fun TouchpadCard(
-    remote: RemoteControlViewModel,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.pointerInput(Unit) {
-            detectDragGestures { change, dragAmount ->
-                change.consume()
-                remote.mouseMove(dragAmount.x, dragAmount.y)
-            }
-        },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = PrimaryContainer.copy(alpha = 0.2f)
-        ),
-        border = BorderStroke(1.dp, Primary.copy(alpha = 0.1f))
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(
-                    imageVector = Icons.Default.TouchApp,
-                    contentDescription = "Touchpad",
-                    tint = Primary.copy(alpha = 0.4f),
-                    modifier = Modifier.size(64.dp)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Touchpad",
-                    color = Primary.copy(alpha = 0.6f),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun LargeSlideButton(
-    text: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Button(
-        onClick = onClick,
-        modifier = modifier.height(80.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Primary,
-            contentColor = OnPrimary
-        )
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = text,
-            modifier = Modifier.size(32.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Medium
-        )
-    }
-}
-
-@Composable
-private fun PresentationButton(
-    text: String? = null,
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
-    onClick: () -> Unit
-) {
-    Button(
-        onClick = onClick,
-        modifier = Modifier.size(64.dp),
-        shape = CircleShape,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = SurfaceContainerHighest,
-            contentColor = OnSurface
-        ),
-        contentPadding = PaddingValues(0.dp)
-    ) {
-        if (icon != null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = text,
-                modifier = Modifier.size(24.dp)
-            )
-        } else {
-            Text(
-                text = text ?: "",
-                style = MaterialTheme.typography.labelMedium
-            )
-        }
-    }
-}
-
-@Composable
-private fun CompactControlButton(
-    text: String? = null,
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
-    onClick: () -> Unit
-) {
-    Surface(
-        onClick = onClick,
-        shape = CircleShape,
-        color = SurfaceContainer.copy(alpha = 0.9f),
-        border = BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.3f))
-    ) {
-        Box(
-            modifier = Modifier.size(56.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = text,
-                    tint = OnSurface,
-                    modifier = Modifier.size(24.dp)
-                )
-            } else {
-                Text(
-                    text = text ?: "",
-                    color = OnSurface,
-                    style = MaterialTheme.typography.labelMedium,
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun BottomNavigationBar() {
-    NavigationBar(
-        modifier = Modifier.fillMaxWidth(),
-        containerColor = SurfaceContainer,
-        tonalElevation = 0.dp
-    ) {
-        NavigationBarItem(
-            selected = false,
-            onClick = { },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.SettingsRemote,
-                    contentDescription = "Controls"
-                )
-            },
-            label = { Text("Controls") }
-        )
-
-        NavigationBarItem(
-            selected = false,
-            onClick = { },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.SettingsBluetooth,
-                    contentDescription = "Keyboard"
-                )
-            },
-            label = { Text("Keyboard") }
-        )
-
-        NavigationBarItem(
-            selected = true,
-            onClick = { },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.SettingsBluetooth,
-                    contentDescription = "Presenter"
-                )
-            },
-            label = { Text("Presenter") }
-        )
-
-        NavigationBarItem(
-            selected = false,
-            onClick = { },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Settings"
-                )
-            },
-            label = { Text("Settings") }
-        )
     }
 }

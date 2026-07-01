@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bluepilot.remote.bluetooth.BluetoothHidManager
+import com.bluepilot.remote.model.ConnectionState
 import com.bluepilot.remote.model.RemoteDevice
 import com.bluepilot.remote.service.HidService
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -119,7 +120,7 @@ class ConnectionViewModel @Inject constructor(
                     device.copy(isConnected = false)
                 }
             }
-            _uiState.value = _uiState.value.copy(statusMessage = message, devices = updatedDevices)
+            _uiState.value = _uiState.value.copy(statusMessage = message, devices = updatedDevices, connectionState = state.state)
         }.launchIn(viewModelScope)
     }
 
@@ -365,5 +366,6 @@ data class ConnectionUiState(
     val isScanning: Boolean = false,
     val isDiscoverable: Boolean = false,
     val statusMessage: String = "Ready. Search, discover, or connect by address.",
-    val devices: List<RemoteDevice> = emptyList()
+    val devices: List<RemoteDevice> = emptyList(),
+    val connectionState: ConnectionState = ConnectionState.DISCONNECTED
 )

@@ -2,670 +2,133 @@
 
 package com.bluepilot.remote.ui.screens.mouse
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BluetoothDisabled
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.Keyboard
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mouse
-import androidx.compose.material.icons.filled.SettingsBluetooth
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SettingsRemote
-import androidx.compose.material.icons.outlined.ExpandLess
-import androidx.compose.material.icons.outlined.ExpandMore
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.bluepilot.remote.ui.theme.*
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.bluepilot.remote.model.ConnectionState
 import com.bluepilot.remote.model.MouseButton as HidMouseButton
+import com.bluepilot.remote.ui.components.BluePilotBackground
+import com.bluepilot.remote.ui.components.GhostButton
+import com.bluepilot.remote.ui.components.GlassCard
+import com.bluepilot.remote.ui.components.PrimaryGlowButton
+import com.bluepilot.remote.ui.components.RemotePadButton
+import com.bluepilot.remote.ui.components.ScreenHeader
+import com.bluepilot.remote.ui.components.StatusPill
+import com.bluepilot.remote.ui.theme.OnSurface
+import com.bluepilot.remote.ui.theme.OnSurfaceVariant
+import com.bluepilot.remote.ui.theme.PrimaryDark
 import com.bluepilot.remote.viewmodel.RemoteControlViewModel
 
-/**
- * Mouse/Keyboard screen with touchpad interface
- * Supports responsive portrait and landscape layouts
- */
 @Composable
 fun MouseKeyboardScreen(
     onNavigateBack: () -> Unit,
     onNavigateToConnection: () -> Unit,
     remote: RemoteControlViewModel = hiltViewModel()
 ) {
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
+    val connection by remote.connectionState.collectAsState()
 
-    var isDrawerOpen by remember { mutableStateOf(false) }
-    val connectionState by remote.connectionState.collectAsState()
-    val isConnected = connectionState.state.name == "CONNECTED"
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background)
-    ) {
+    BluePilotBackground {
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            // Top App Bar
-            TopAppBar(
-                onMenuClick = { isDrawerOpen = true },
-                onKeyboardClick = { /* Open keyboard */ },
-                isConnected = isConnected
-            )
-
-            if (isLandscape) {
-                LandscapeContent(
-                    isConnected = isConnected,
-                    onNavigateToConnection = onNavigateToConnection,
-                    remote = remote
-                )
-            } else {
-                PortraitContent(
-                    isConnected = isConnected,
-                    onNavigateToConnection = onNavigateToConnection,
-                    remote = remote
-                )
+            ScreenHeader("Mouse Trackpad", "Glass touch surface for PC cursor") {
+                IconButton(onClick = onNavigateBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = PrimaryDark) }
             }
-        }
+            StatusPill(connection.state, connection.state.name.replace('_', ' '), Modifier.align(Alignment.CenterHorizontally))
 
-        // Navigation Drawer Overlay
-        if (isDrawerOpen) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.6f))
-                    .clickable { isDrawerOpen = false }
-            )
-            NavigationDrawer(
-                modifier = Modifier.align(Alignment.CenterStart),
-                onClose = { isDrawerOpen = false }
-            )
-        }
-
-        // Bottom Navigation Bar
-        BottomNavigationBar(
-            isLandscape = isLandscape
-        )
-    }
-}
-
-@Composable
-private fun TopAppBar(
-    onMenuClick: () -> Unit,
-    onKeyboardClick: () -> Unit,
-    isConnected: Boolean
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onMenuClick) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = "Menu",
-                    tint = Primary
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Mouse / Keyboard",
-                color = Primary,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onKeyboardClick) {
-                Icon(
-                    imageVector = Icons.Default.Keyboard,
-                    contentDescription = "Keyboard",
-                    tint = OnSurfaceVariant
-                )
-            }
-
-            // Connection Status Pill
-            Surface(
-                shape = CircleShape,
-                color = if (isConnected) SurfaceContainer else ErrorContainer.copy(alpha = 0.2f)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(if (isConnected) Color(0xFF10B981) else Error)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (isConnected) "Connected" else "Disconnected",
-                        color = if (isConnected) OnSurface else Error,
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PortraitContent(
-    isConnected: Boolean,
-    onNavigateToConnection: () -> Unit,
-    remote: RemoteControlViewModel
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Warning Card if not connected
-        if (!isConnected) {
-            ConnectionWarningCard(onNavigateToConnection = onNavigateToConnection)
-        }
-
-        // Touchpad Area
-        TouchpadArea(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            remote = remote
-        )
-
-        // Mouse Buttons
-        MouseButtons(
-            modifier = Modifier.fillMaxWidth(),
-            remote = remote
-        )
-    }
-}
-
-@Composable
-private fun LandscapeContent(
-    isConnected: Boolean,
-    onNavigateToConnection: () -> Unit,
-    remote: RemoteControlViewModel
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Left side: Touchpad (expanded)
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            if (!isConnected) {
-                ConnectionWarningCard(onNavigateToConnection = onNavigateToConnection)
-            }
-            
-            TouchpadArea(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                remote = remote
-            )
-        }
-
-        // Right side: Mouse buttons (compact)
-        Column(
-            modifier = Modifier
-                .width(120.dp)
-                .fillMaxHeight(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            CompactMouseButtons(remote = remote)
-        }
-    }
-}
-
-@Composable
-private fun ConnectionWarningCard(
-    onNavigateToConnection: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = ErrorContainer.copy(alpha = 0.1f)
-        ),
-        border = BorderStroke(1.dp, Error.copy(alpha = 0.2f))
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            GlassCard(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(ErrorContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.BluetoothDisabled,
-                        contentDescription = null,
-                        tint = OnErrorContainer,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column {
-                    Text(
-                        text = "Connection Required",
-                        color = Error,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = "Click below to configure your remote device and start controlling.",
-                        color = OnSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-
-            Button(
-                onClick = onNavigateToConnection,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Error,
-                    contentColor = OnError
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.SettingsBluetooth,
-                    contentDescription = null
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Setup remote device")
-            }
-        }
-    }
-}
-
-@Composable
-private fun TouchpadArea(
-    modifier: Modifier = Modifier,
-    remote: RemoteControlViewModel
-) {
-    var lastPosition by remember { mutableStateOf(Offset.Zero) }
-
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(32.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = PrimaryContainer.copy(alpha = 0.2f)
-        ),
-        border = BorderStroke(1.dp, Primary.copy(alpha = 0.1f))
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = { remote.mouseClick(HidMouseButton.LEFT) },
-                        onDoubleTap = { remote.mouseClick(HidMouseButton.LEFT); remote.mouseClick(HidMouseButton.LEFT) }
-                    )
-                }
-                .pointerInput(Unit) {
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            lastPosition = offset
-                        },
-                        onDrag = { change, dragAmount ->
-                            change.consume()
-                            remote.mouseMove(dragAmount.x, dragAmount.y)
-                            lastPosition += dragAmount
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onTap = { remote.mouseClick(HidMouseButton.LEFT) },
+                                onDoubleTap = {
+                                    remote.mouseClick(HidMouseButton.LEFT)
+                                    remote.mouseClick(HidMouseButton.LEFT)
+                                }
+                            )
                         }
-                    )
-                }
-        ) {
-            // Center mouse icon
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(96.dp)
-                        .clip(CircleShape)
-                        .background(Primary.copy(alpha = 0.05f))
-                        .border(1.dp, Primary.copy(alpha = 0.1f), CircleShape),
+                        .pointerInput(Unit) {
+                            detectDragGestures { change, dragAmount ->
+                                change.consume()
+                                remote.mouseMove(dragAmount.x, dragAmount.y)
+                            }
+                        },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Mouse,
-                        contentDescription = "Touchpad",
-                        tint = Primary.copy(alpha = 0.4f),
-                        modifier = Modifier.size(48.dp)
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.TouchApp, contentDescription = null, tint = PrimaryDark, modifier = Modifier.size(72.dp))
+                        Spacer(Modifier.height(12.dp))
+                        Text("TRACKPAD", color = PrimaryDark, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                        Text("Drag to move • Tap to left click", color = OnSurfaceVariant, textAlign = TextAlign.Center)
+                    }
                 }
             }
 
-            // Scroll bar (right side)
-            Column(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(vertical = 32.dp, horizontal = 16.dp)
-                    .fillMaxHeight(),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.ExpandLess,
-                    contentDescription = "Scroll Up",
-                    tint = Primary.copy(alpha = 0.3f)
-                )
-                
-                Box(
-                    modifier = Modifier
-                        .width(6.dp)
-                        .height(48.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(Primary.copy(alpha = 0.2f))
-                )
-                
-                Icon(
-                    imageVector = Icons.Outlined.ExpandMore,
-                    contentDescription = "Scroll Down",
-                    tint = Primary.copy(alpha = 0.3f)
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    PrimaryGlowButton("Left", { remote.mouseClick(HidMouseButton.LEFT) }, Modifier.weight(1f), Icons.Default.Mouse)
+                    GhostButton("Middle", { remote.mouseClick(HidMouseButton.MIDDLE) }, Modifier.weight(1f))
+                    PrimaryGlowButton("Right", { remote.mouseClick(HidMouseButton.RIGHT) }, Modifier.weight(1f), Icons.Default.Mouse)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    RemotePadButton("Scroll ↑", { remote.mouseScroll(-4) }, Modifier.weight(1f))
+                    RemotePadButton("Scroll ↓", { remote.mouseScroll(4) }, Modifier.weight(1f))
+                    RemotePadButton("Tab", { remote.tab() }, Modifier.weight(1f), Icons.Default.Keyboard)
+                }
+                Text(
+                    if (connection.state == ConnectionState.CONNECTED) "Ready for input" else "Connect to PC first. Controls are sent only after HID connection is active.",
+                    color = OnSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
+            Spacer(Modifier.height(72.dp))
         }
-    }
-}
-
-@Composable
-private fun MouseButtons(
-    modifier: Modifier = Modifier,
-    remote: RemoteControlViewModel
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        MouseButton(
-            text = "Left",
-            modifier = Modifier.weight(1f),
-            onClick = { remote.mouseClick(HidMouseButton.LEFT) }
-        )
-        
-        MouseButton(
-            text = "Right",
-            modifier = Modifier.weight(1f),
-            onClick = { remote.mouseClick(HidMouseButton.RIGHT) }
-        )
-    }
-}
-
-@Composable
-private fun CompactMouseButtons(remote: RemoteControlViewModel) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        MouseButton(
-            text = "L",
-            modifier = Modifier.fillMaxWidth(),
-            onClick = { remote.mouseClick(HidMouseButton.LEFT) }
-        )
-        
-        MouseButton(
-            text = "R",
-            modifier = Modifier.fillMaxWidth(),
-            onClick = { remote.mouseClick(HidMouseButton.RIGHT) }
-        )
-    }
-}
-
-@Composable
-private fun MouseButton(
-    text: String,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    Button(
-        onClick = onClick,
-        modifier = modifier.height(80.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = SurfaceContainerHighest,
-            contentColor = OnSurface
-        ),
-        border = BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.3f))
-    ) {
-        Text(
-            text = text.uppercase(),
-            style = MaterialTheme.typography.titleLarge,
-            textAlign = TextAlign.Center,
-            color = OnSurfaceVariant.copy(alpha = 0.6f)
-        )
-    }
-}
-
-@Composable
-private fun NavigationDrawer(
-    modifier: Modifier = Modifier,
-    onClose: () -> Unit
-) {
-    Card(
-        modifier = modifier
-            .width(280.dp)
-            .fillMaxHeight()
-            .padding(vertical = 32.dp),
-        shape = RoundedCornerShape(0.dp, 16.dp, 16.dp, 0.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = SurfaceContainerLow
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // User info
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 16.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .background(PrimaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "BP",
-                        color = OnPrimaryContainer,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Column {
-                    Text(
-                        text = "BluePilot Pro",
-                        color = Primary,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Power User • v2.4.0",
-                        color = OnSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+            NavigationBar(containerColor = com.bluepilot.remote.ui.theme.SurfaceContainer.copy(alpha = 0.92f), tonalElevation = 0.dp) {
+                NavigationBarItem(selected = false, onClick = onNavigateToConnection, icon = { Icon(Icons.Default.BluetoothSearching, null) }, label = { Text("Connect") })
+                NavigationBarItem(selected = true, onClick = {}, icon = { Icon(Icons.Default.Mouse, null) }, label = { Text("Mouse") })
+                NavigationBarItem(selected = false, onClick = {}, icon = { Icon(Icons.Default.Keyboard, null) }, label = { Text("Keyboard") })
+                NavigationBarItem(selected = false, onClick = {}, icon = { Icon(Icons.Default.Settings, null) }, label = { Text("More") })
             }
-
-            Divider(color = OutlineVariant.copy(alpha = 0.3f))
-
-            // Navigation items
-            DrawerItem(
-                icon = Icons.Default.SettingsRemote,
-                text = "Dashboard",
-                isSelected = false,
-                onClick = { }
-            )
-
-            DrawerItem(
-                icon = Icons.Default.Mouse,
-                text = "Touchpad",
-                isSelected = true,
-                onClick = onClose
-            )
-
-            DrawerItem(
-                icon = Icons.Default.Keyboard,
-                text = "Keyboard",
-                isSelected = false,
-                onClick = { }
-            )
-
-            DrawerItem(
-                icon = Icons.Default.SettingsBluetooth,
-                text = "Device Settings",
-                isSelected = false,
-                onClick = { }
-            )
         }
-    }
-}
-
-@Composable
-private fun DrawerItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    text: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = CircleShape,
-        color = if (isSelected) SecondaryContainer else Color.Transparent
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = text,
-                tint = if (isSelected) OnSecondaryContainer else OnSurfaceVariant,
-                modifier = Modifier.size(24.dp)
-            )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Text(
-                text = text,
-                color = if (isSelected) OnSecondaryContainer else OnSurfaceVariant,
-                style = MaterialTheme.typography.labelLarge
-            )
-        }
-    }
-}
-
-@Composable
-private fun BottomNavigationBar(
-    isLandscape: Boolean
-) {
-    NavigationBar(
-        modifier = Modifier.fillMaxWidth(),
-        containerColor = SurfaceContainer,
-        tonalElevation = 0.dp
-    ) {
-        NavigationBarItem(
-            selected = true,
-            onClick = { },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.SettingsRemote,
-                    contentDescription = "Controls"
-                )
-            },
-            label = { Text("Controls") }
-        )
-
-        NavigationBarItem(
-            selected = false,
-            onClick = { },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Keyboard,
-                    contentDescription = "Keyboard"
-                )
-            },
-            label = { Text("Keyboard") }
-        )
-
-        NavigationBarItem(
-            selected = false,
-            onClick = { },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.SettingsBluetooth,
-                    contentDescription = "Gamepad"
-                )
-            },
-            label = { Text("Gamepad") }
-        )
-
-        NavigationBarItem(
-            selected = false,
-            onClick = { },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Settings"
-                )
-            },
-            label = { Text("Settings") }
-        )
     }
 }
