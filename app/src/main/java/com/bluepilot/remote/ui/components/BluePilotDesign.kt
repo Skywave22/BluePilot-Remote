@@ -25,7 +25,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -156,7 +155,7 @@ fun GhostButton(
         enabled = enabled,
         modifier = modifier.height(52.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = OutlinedButtonDefaults.outlinedButtonColors(
+        colors = ButtonDefaults.outlinedButtonColors(
             containerColor = SurfaceContainer.copy(alpha = 0.35f),
             contentColor = PrimaryDark,
             disabledContentColor = OnSurfaceVariant
