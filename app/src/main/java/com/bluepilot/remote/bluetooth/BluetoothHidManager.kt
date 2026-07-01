@@ -20,7 +20,9 @@ import com.bluepilot.remote.model.RemoteDevice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.Executors
+import javax.inject.Inject
 
 /**
  * Compile-safe Bluetooth HID manager using Android's public BluetoothHidDevice API.
@@ -30,7 +32,9 @@ import java.util.concurrent.Executors
  * and uses sendReport()/connect()/unregisterApp() with the real Android signatures.
  */
 @SuppressLint("MissingPermission")
-class BluetoothHidManager(private val context: Context) {
+class BluetoothHidManager @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
 
     companion object {
         private const val TAG = "BluetoothHidManager"
