@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mouse
 import androidx.compose.material.icons.filled.SettingsBluetooth
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SettingsRemote
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
@@ -33,6 +34,9 @@ import androidx.compose.ui.unit.dp
 import com.bluepilot.remote.ui.theme.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.bluepilot.remote.model.MouseButton as HidMouseButton
+import com.bluepilot.remote.viewmodel.RemoteControlViewModel
 
 /**
  * Mouse/Keyboard screen with touchpad interface
@@ -41,13 +45,15 @@ import androidx.compose.foundation.clickable
 @Composable
 fun MouseKeyboardScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToConnection: () -> Unit
+    onNavigateToConnection: () -> Unit,
+    remote: RemoteControlViewModel = hiltViewModel()
 ) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
 
     var isDrawerOpen by remember { mutableStateOf(false) }
-    var isConnected by remember { mutableStateOf(false) }
+    val connectionState by remote.connectionState.collectAsState()
+    val isConnected = connectionState.state.name == "CONNECTED"
 
     Box(
         modifier = Modifier
@@ -67,12 +73,14 @@ fun MouseKeyboardScreen(
             if (isLandscape) {
                 LandscapeContent(
                     isConnected = isConnected,
-                    onNavigateToConnection = onNavigateToConnection
+                    onNavigateToConnection = onNavigateToConnection,
+                    remote = remote
                 )
             } else {
                 PortraitContent(
                     isConnected = isConnected,
-                    onNavigateToConnection = onNavigateToConnection
+                    onNavigateToConnection = onNavigateToConnection,
+                    remote = remote
                 )
             }
         }
@@ -171,7 +179,8 @@ private fun TopAppBar(
 @Composable
 private fun PortraitContent(
     isConnected: Boolean,
-    onNavigateToConnection: () -> Unit
+    onNavigateToConnection: () -> Unit,
+    remote: RemoteControlViewModel
 ) {
     Column(
         modifier = Modifier
@@ -188,12 +197,14 @@ private fun PortraitContent(
         TouchpadArea(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
+                .weight(1f),
+            remote = remote
         )
 
         // Mouse Buttons
         MouseButtons(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            remote = remote
         )
     }
 }
@@ -201,7 +212,8 @@ private fun PortraitContent(
 @Composable
 private fun LandscapeContent(
     isConnected: Boolean,
-    onNavigateToConnection: () -> Unit
+    onNavigateToConnection: () -> Unit,
+    remote: RemoteControlViewModel
 ) {
     Row(
         modifier = Modifier
@@ -223,7 +235,8 @@ private fun LandscapeContent(
             TouchpadArea(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .weight(1f),
+                remote = remote
             )
         }
 
@@ -234,7 +247,7 @@ private fun LandscapeContent(
                 .fillMaxHeight(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            CompactMouseButtons()
+            CompactMouseButtons(remote = remote)
         }
     }
 }
@@ -312,7 +325,8 @@ private fun ConnectionWarningCard(
 
 @Composable
 private fun TouchpadArea(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    remote: RemoteControlViewModel
 ) {
     var lastPosition by remember { mutableStateOf(Offset.Zero) }
 
@@ -328,13 +342,19 @@ private fun TouchpadArea(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = { remote.mouseClick(HidMouseButton.LEFT) },
+                        onDoubleTap = { remote.mouseClick(HidMouseButton.LEFT); remote.mouseClick(HidMouseButton.LEFT) }
+                    )
+                }
+                .pointerInput(Unit) {
                     detectDragGestures(
                         onDragStart = { offset ->
                             lastPosition = offset
                         },
                         onDrag = { change, dragAmount ->
                             change.consume()
-                            // Send mouse movement based on drag amount.
+                            remote.mouseMove(dragAmount.x, dragAmount.y)
                             lastPosition += dragAmount
                         }
                     )
@@ -396,7 +416,8 @@ private fun TouchpadArea(
 
 @Composable
 private fun MouseButtons(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    remote: RemoteControlViewModel
 ) {
     Row(
         modifier = modifier,
@@ -405,19 +426,19 @@ private fun MouseButtons(
         MouseButton(
             text = "Left",
             modifier = Modifier.weight(1f),
-            onClick = { /* Left click */ }
+            onClick = { remote.mouseClick(HidMouseButton.LEFT) }
         )
         
         MouseButton(
             text = "Right",
             modifier = Modifier.weight(1f),
-            onClick = { /* Right click */ }
+            onClick = { remote.mouseClick(HidMouseButton.RIGHT) }
         )
     }
 }
 
 @Composable
-private fun CompactMouseButtons() {
+private fun CompactMouseButtons(remote: RemoteControlViewModel) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -425,13 +446,13 @@ private fun CompactMouseButtons() {
         MouseButton(
             text = "L",
             modifier = Modifier.fillMaxWidth(),
-            onClick = { /* Left click */ }
+            onClick = { remote.mouseClick(HidMouseButton.LEFT) }
         )
         
         MouseButton(
             text = "R",
             modifier = Modifier.fillMaxWidth(),
-            onClick = { /* Right click */ }
+            onClick = { remote.mouseClick(HidMouseButton.RIGHT) }
         )
     }
 }
@@ -640,7 +661,7 @@ private fun BottomNavigationBar(
             onClick = { },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.SettingsBluetooth,
+                    imageVector = Icons.Default.Settings,
                     contentDescription = "Settings"
                 )
             },

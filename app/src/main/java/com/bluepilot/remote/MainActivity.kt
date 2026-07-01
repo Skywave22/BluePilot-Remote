@@ -1,7 +1,7 @@
 package com.bluepilot.remote
 
-import android.Manifest
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -11,8 +11,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.bluepilot.remote.ui.navigation.BluePilotNavigation
+import com.bluepilot.remote.model.ThemeMode
 import com.bluepilot.remote.ui.theme.BluePilotTheme
 import com.bluepilot.remote.viewmodel.MainViewModel
+import com.bluepilot.remote.viewmodel.SettingsViewModel
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
@@ -23,6 +27,7 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
+    private val settingsViewModel: SettingsViewModel by viewModels()
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -34,7 +39,18 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         
         setContent {
-            BluePilotTheme {
+            val appSettings by settingsViewModel.appSettings.collectAsState()
+            if (appSettings.keepScreenOn) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } else {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+            val darkTheme = when (appSettings.theme) {
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+                ThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
+            }
+            BluePilotTheme(darkTheme = darkTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

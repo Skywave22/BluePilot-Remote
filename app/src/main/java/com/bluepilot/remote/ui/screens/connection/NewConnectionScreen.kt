@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Radar
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SettingsBluetooth
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.*
@@ -67,6 +68,7 @@ fun NewConnectionScreen(
     }
 
     fun requestDiscoverability() {
+        viewModel.prepareHostMode()
         val intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
             putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300)
         }
@@ -109,7 +111,8 @@ fun NewConnectionScreen(
                 DeviceResults(
                     devices = uiState.devices,
                     onConnect = viewModel::connectToDevice,
-                    onOpenDevices = onNavigateToDevices
+                    onOpenDevices = onNavigateToDevices,
+                    onOpenBluetoothSettings = viewModel::openBluetoothSettings
                 )
             }
 
@@ -280,8 +283,8 @@ private fun DiscoverabilityCard(isDiscovering: Boolean, onDiscoverClick: () -> U
                 IconBox(Icons.Outlined.Visibility, PrimaryContainer, OnPrimaryContainer)
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Connect from another device", color = OnSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
-                    Text("Open Android's discoverability dialog so another device can see and pair with this phone.", color = OnSurfaceVariant, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+                    Text("Connect PC to this phone", color = OnSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                    Text("For Windows PC, use this first: remove old BluePilot/phone entry on PC, tap this, then on PC choose Add device > Bluetooth and select this phone. After pairing, BluePilot connects as keyboard/mouse.", color = OnSurfaceVariant, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))
@@ -294,7 +297,7 @@ private fun DiscoverabilityCard(isDiscovering: Boolean, onDiscoverClick: () -> U
             ) {
                 Icon(if (isDiscovering) Icons.Default.BluetoothDisabled else Icons.Outlined.Visibility, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(if (isDiscovering) "Discoverability requested" else "Turn on discoverability", style = MaterialTheme.typography.titleMedium)
+                Text(if (isDiscovering) "Host mode ready" else "Prepare PC connection", style = MaterialTheme.typography.titleMedium)
             }
         }
     }
@@ -347,14 +350,22 @@ private fun MacAddressCard(macAddress: String, onMacAddressChange: (String) -> U
 }
 
 @Composable
-private fun DeviceResults(devices: List<RemoteDevice>, onConnect: (RemoteDevice) -> Unit, onOpenDevices: () -> Unit) {
+private fun DeviceResults(
+    devices: List<RemoteDevice>,
+    onConnect: (RemoteDevice) -> Unit,
+    onOpenDevices: () -> Unit,
+    onOpenBluetoothSettings: () -> Unit
+) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Found devices", color = Primary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            TextButton(onClick = onOpenDevices) { Text("Manage") }
+            Row {
+                TextButton(onClick = onOpenBluetoothSettings) { Text("Android BT") }
+                TextButton(onClick = onOpenDevices) { Text("Manage") }
+            }
         }
         devices.forEach { device ->
             Card(
@@ -373,10 +384,10 @@ private fun DeviceResults(devices: List<RemoteDevice>, onConnect: (RemoteDevice)
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(device.name, color = OnSurface, fontWeight = FontWeight.Medium)
-                            Text("${device.address}${if (device.isPaired) " • Paired" else ""}", color = OnSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                            Text("${device.address}${if (device.isConnected) " • Connected" else if (device.isPaired) " • Paired" else ""}", color = OnSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                         }
                     }
-                    Button(onClick = { onConnect(device) }, shape = RoundedCornerShape(10.dp)) { Text("Connect") }
+                    Button(onClick = { onConnect(device) }, enabled = !device.isConnected, shape = RoundedCornerShape(10.dp)) { Text(if (device.isConnected) "Connected" else if (device.isPaired) "Connect" else "Pair") }
                 }
             }
         }
@@ -399,7 +410,7 @@ private fun BottomNavigationBar(onNavigateToScreen: (String) -> Unit) {
         NavigationBarItem(selected = false, onClick = { onNavigateToScreen("mouse_keyboard") }, icon = { Icon(Icons.Default.SettingsBluetooth, contentDescription = "Controls") }, label = { Text("Controls") })
         NavigationBarItem(selected = true, onClick = { }, icon = { Icon(Icons.Default.Search, contentDescription = "Connection") }, label = { Text("Connect") })
         NavigationBarItem(selected = false, onClick = { onNavigateToScreen("gamepad") }, icon = { Icon(Icons.Default.Radar, contentDescription = "Gamepad") }, label = { Text("Gamepad") })
-        NavigationBarItem(selected = false, onClick = { onNavigateToScreen("settings") }, icon = { Icon(Icons.Default.SettingsBluetooth, contentDescription = "Settings") }, label = { Text("Settings") })
+        NavigationBarItem(selected = false, onClick = { onNavigateToScreen("settings") }, icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") }, label = { Text("Settings") })
     }
 }
 

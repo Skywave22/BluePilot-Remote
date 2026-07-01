@@ -7,6 +7,9 @@ import android.bluetooth.BluetoothHidDevice
 import android.bluetooth.BluetoothHidDeviceAppQosSettings
 import android.bluetooth.BluetoothHidDeviceAppSdpSettings
 import android.bluetooth.BluetoothProfile
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.provider.Settings
 import android.content.Context
 import android.os.Build
 import android.util.Log
@@ -23,6 +26,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.Executors
 import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * Compile-safe Bluetooth HID manager using Android's public BluetoothHidDevice API.
@@ -31,6 +35,7 @@ import javax.inject.Inject
  * Callback.onAppStatusChanged(), not as a public constructor. This class stores that object
  * and uses sendReport()/connect()/unregisterApp() with the real Android signatures.
  */
+@Singleton
 @SuppressLint("MissingPermission")
 class BluetoothHidManager @Inject constructor(
     @ApplicationContext private val context: Context
@@ -43,6 +48,11 @@ class BluetoothHidManager @Inject constructor(
         private const val REPORT_ID_CONSUMER = 3
         private const val REPORT_ID_SYSTEM = 4
         private const val REPORT_ID_GAMEPAD = 5
+        private const val HID_PROFILE_VERSION = 0x0111
+        private const val HID_COUNTRY_CODE = 0x00
+        private const val HID_VIRTUAL_CABLE = 0x02
+        private const val HID_RECONNECT_INITIATE = 0x04
+        private const val HID_NORMALLY_CONNECTABLE = 0x0D
 
         private val KEYBOARD_DESCRIPTOR = byteArrayOf(
             0x05, 0x01, 0x09, 0x06, 0xA1.toByte(), 0x01, 0x85.toByte(), REPORT_ID_KEYBOARD.toByte(),
@@ -77,6 +87,8 @@ class BluetoothHidManager @Inject constructor(
             0x05, 0x01, 0x09, 0x05, 0xA1.toByte(), 0x01, 0x85.toByte(), REPORT_ID_GAMEPAD.toByte(),
             0x05, 0x09, 0x19, 0x01, 0x29, 0x10, 0x15, 0x00,
             0x25, 0x01, 0x95.toByte(), 0x10, 0x75, 0x01, 0x81.toByte(), 0x02,
+            0x05, 0x01, 0x09, 0x39, 0x15, 0x00, 0x25, 0x08,
+            0x95.toByte(), 0x01, 0x75, 0x08, 0x81.toByte(), 0x02,
             0x05, 0x01, 0x09, 0x30, 0x09, 0x31, 0x09, 0x32,
             0x09, 0x35, 0x15, 0x00, 0x26, 0xFF.toByte(), 0x00, 0x75, 0x08,
             0x95.toByte(), 0x04, 0x81.toByte(), 0x02, 0xC0.toByte()
@@ -90,6 +102,10 @@ class BluetoothHidManager @Inject constructor(
     private val executor = Executors.newSingleThreadExecutor()
     private var hidDevice: BluetoothHidDevice? = null
     private var connectedDevice: BluetoothDevice? = null
+    private var pendingConnectDevice: BluetoothDevice? = null
+    private var proxyRequested = false
+    private var appRegistrationRequested = false
+    private var appRegistered = false
 
     private val _connectionState = MutableStateFlow(ConnectionStateData(ConnectionState.DISCONNECTED))
     val connectionState: StateFlow<ConnectionStateData> = _connectionState.asStateFlow()
@@ -101,6 +117,7 @@ class BluetoothHidManager @Inject constructor(
         override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
             if (profile == BluetoothProfile.HID_DEVICE) {
                 hidDevice = proxy as BluetoothHidDevice
+                proxyRequested = false
                 _isHidSupported.value = true
                 registerHidApp()
             }
@@ -110,6 +127,9 @@ class BluetoothHidManager @Inject constructor(
             if (profile == BluetoothProfile.HID_DEVICE) {
                 hidDevice = null
                 connectedDevice = null
+                proxyRequested = false
+                appRegistrationRequested = false
+                appRegistered = false
                 _isHidSupported.value = false
                 _connectionState.value = ConnectionStateData(ConnectionState.DISCONNECTED)
             }
@@ -119,7 +139,21 @@ class BluetoothHidManager @Inject constructor(
     private val hidCallback = object : BluetoothHidDevice.Callback() {
         override fun onAppStatusChanged(pluggedDevice: BluetoothDevice?, registered: Boolean) {
             Log.d(TAG, "onAppStatusChanged registered=$registered device=$pluggedDevice")
+            appRegistered = registered
+            appRegistrationRequested = false
             _isHidSupported.value = registered
+            if (!registered) {
+                connectedDevice = null
+                pendingConnectDevice = null
+                _connectionState.value = ConnectionStateData(ConnectionState.HID_UNSUPPORTED, errorMessage = "Android refused HID registration. This phone/ROM may not support Bluetooth HID Device mode.")
+                return
+            }
+            if (registered) {
+                pendingConnectDevice?.let { device ->
+                    pendingConnectDevice = null
+                    connect(device)
+                }
+            }
         }
 
         override fun onConnectionStateChanged(device: BluetoothDevice?, state: Int) {
@@ -162,6 +196,7 @@ class BluetoothHidManager @Inject constructor(
     }
 
     fun initialize(): Boolean {
+        if (hidDevice != null || proxyRequested) return true
         if (bluetoothAdapter == null) {
             _connectionState.value = ConnectionStateData(ConnectionState.BLUETOOTH_DISABLED, errorMessage = "Bluetooth not available")
             return false
@@ -170,10 +205,12 @@ class BluetoothHidManager @Inject constructor(
             _connectionState.value = ConnectionStateData(ConnectionState.HID_UNSUPPORTED, errorMessage = "Bluetooth HID requires Android 9+")
             return false
         }
-        return bluetoothAdapter.getProfileProxy(context, serviceListener, BluetoothProfile.HID_DEVICE)
+        proxyRequested = bluetoothAdapter.getProfileProxy(context, serviceListener, BluetoothProfile.HID_DEVICE)
+        return proxyRequested
     }
 
     fun registerHidApp(): Boolean {
+        if (appRegistered || appRegistrationRequested) return true
         val device = hidDevice ?: return false
         val sdp = BluetoothHidDeviceAppSdpSettings(
             "BluePilot Remote",
@@ -190,6 +227,7 @@ class BluetoothHidManager @Inject constructor(
                 executor,
                 hidCallback
             )
+            appRegistrationRequested = result
             if (!result) {
                 _connectionState.value = ConnectionStateData(ConnectionState.HID_UNSUPPORTED, errorMessage = "Failed to register HID app")
             }
@@ -209,10 +247,37 @@ class BluetoothHidManager @Inject constructor(
         }
     }
 
+    fun retryHidRegistration() {
+        try {
+            appRegistrationRequested = false
+            appRegistered = false
+            hidDevice?.unregisterApp()
+        } catch (_: Exception) {
+        }
+        registerHidApp()
+    }
+
     fun connect(device: BluetoothDevice): Boolean {
         return try {
             _connectionState.value = ConnectionStateData(ConnectionState.CONNECTING, RemoteDevice.fromBluetoothDevice(device))
-            hidDevice?.connect(device) ?: false
+            if (hidDevice == null) {
+                pendingConnectDevice = device
+                initialize()
+                return true
+            }
+            if (!appRegistered) {
+                pendingConnectDevice = device
+                registerHidApp()
+                return true
+            }
+            val started = hidDevice?.connect(device) ?: false
+            if (!started) {
+                pendingConnectDevice = device
+                retryHidRegistration()
+                true
+            } else {
+                true
+            }
         } catch (e: Exception) {
             Log.e(TAG, "connect failed", e)
             _connectionState.value = ConnectionStateData(ConnectionState.ERROR, errorMessage = e.message)
@@ -241,49 +306,95 @@ class BluetoothHidManager @Inject constructor(
     }
 
     fun sendText(text: String) {
-        text.forEach { char -> charToKeyCode(char)?.let { sendKeyboardKey(it) } }
+        text.forEach { char ->
+            charToKeyStroke(char)?.let { (code, modifiers) -> sendKeyboardKey(code, modifiers) }
+        }
     }
 
-    private fun charToKeyCode(char: Char): Byte? = when (char) {
-        'a', 'A' -> KeyboardKeyCodes.KEY_A
-        'b', 'B' -> KeyboardKeyCodes.KEY_B
-        'c', 'C' -> KeyboardKeyCodes.KEY_C
-        'd', 'D' -> KeyboardKeyCodes.KEY_D
-        'e', 'E' -> KeyboardKeyCodes.KEY_E
-        'f', 'F' -> KeyboardKeyCodes.KEY_F
-        'g', 'G' -> KeyboardKeyCodes.KEY_G
-        'h', 'H' -> KeyboardKeyCodes.KEY_H
-        'i', 'I' -> KeyboardKeyCodes.KEY_I
-        'j', 'J' -> KeyboardKeyCodes.KEY_J
-        'k', 'K' -> KeyboardKeyCodes.KEY_K
-        'l', 'L' -> KeyboardKeyCodes.KEY_L
-        'm', 'M' -> KeyboardKeyCodes.KEY_M
-        'n', 'N' -> KeyboardKeyCodes.KEY_N
-        'o', 'O' -> KeyboardKeyCodes.KEY_O
-        'p', 'P' -> KeyboardKeyCodes.KEY_P
-        'q', 'Q' -> KeyboardKeyCodes.KEY_Q
-        'r', 'R' -> KeyboardKeyCodes.KEY_R
-        's', 'S' -> KeyboardKeyCodes.KEY_S
-        't', 'T' -> KeyboardKeyCodes.KEY_T
-        'u', 'U' -> KeyboardKeyCodes.KEY_U
-        'v', 'V' -> KeyboardKeyCodes.KEY_V
-        'w', 'W' -> KeyboardKeyCodes.KEY_W
-        'x', 'X' -> KeyboardKeyCodes.KEY_X
-        'y', 'Y' -> KeyboardKeyCodes.KEY_Y
-        'z', 'Z' -> KeyboardKeyCodes.KEY_Z
-        '0' -> KeyboardKeyCodes.KEY_0
-        '1' -> KeyboardKeyCodes.KEY_1
-        '2' -> KeyboardKeyCodes.KEY_2
-        '3' -> KeyboardKeyCodes.KEY_3
-        '4' -> KeyboardKeyCodes.KEY_4
-        '5' -> KeyboardKeyCodes.KEY_5
-        '6' -> KeyboardKeyCodes.KEY_6
-        '7' -> KeyboardKeyCodes.KEY_7
-        '8' -> KeyboardKeyCodes.KEY_8
-        '9' -> KeyboardKeyCodes.KEY_9
-        ' ' -> KeyboardKeyCodes.KEY_SPACE
-        '\n' -> KeyboardKeyCodes.KEY_ENTER
-        '\t' -> KeyboardKeyCodes.KEY_TAB
+    private fun charToKeyStroke(char: Char): Pair<Byte, Byte>? = when (char) {
+        'a' -> Pair(KeyboardKeyCodes.KEY_A, 0.toByte())
+        'b' -> Pair(KeyboardKeyCodes.KEY_B, 0.toByte())
+        'c' -> Pair(KeyboardKeyCodes.KEY_C, 0.toByte())
+        'd' -> Pair(KeyboardKeyCodes.KEY_D, 0.toByte())
+        'e' -> Pair(KeyboardKeyCodes.KEY_E, 0.toByte())
+        'f' -> Pair(KeyboardKeyCodes.KEY_F, 0.toByte())
+        'g' -> Pair(KeyboardKeyCodes.KEY_G, 0.toByte())
+        'h' -> Pair(KeyboardKeyCodes.KEY_H, 0.toByte())
+        'i' -> Pair(KeyboardKeyCodes.KEY_I, 0.toByte())
+        'j' -> Pair(KeyboardKeyCodes.KEY_J, 0.toByte())
+        'k' -> Pair(KeyboardKeyCodes.KEY_K, 0.toByte())
+        'l' -> Pair(KeyboardKeyCodes.KEY_L, 0.toByte())
+        'm' -> Pair(KeyboardKeyCodes.KEY_M, 0.toByte())
+        'n' -> Pair(KeyboardKeyCodes.KEY_N, 0.toByte())
+        'o' -> Pair(KeyboardKeyCodes.KEY_O, 0.toByte())
+        'p' -> Pair(KeyboardKeyCodes.KEY_P, 0.toByte())
+        'q' -> Pair(KeyboardKeyCodes.KEY_Q, 0.toByte())
+        'r' -> Pair(KeyboardKeyCodes.KEY_R, 0.toByte())
+        's' -> Pair(KeyboardKeyCodes.KEY_S, 0.toByte())
+        't' -> Pair(KeyboardKeyCodes.KEY_T, 0.toByte())
+        'u' -> Pair(KeyboardKeyCodes.KEY_U, 0.toByte())
+        'v' -> Pair(KeyboardKeyCodes.KEY_V, 0.toByte())
+        'w' -> Pair(KeyboardKeyCodes.KEY_W, 0.toByte())
+        'x' -> Pair(KeyboardKeyCodes.KEY_X, 0.toByte())
+        'y' -> Pair(KeyboardKeyCodes.KEY_Y, 0.toByte())
+        'z' -> Pair(KeyboardKeyCodes.KEY_Z, 0.toByte())
+        'A' -> Pair(KeyboardKeyCodes.KEY_A, 2.toByte())
+        'B' -> Pair(KeyboardKeyCodes.KEY_B, 2.toByte())
+        'C' -> Pair(KeyboardKeyCodes.KEY_C, 2.toByte())
+        'D' -> Pair(KeyboardKeyCodes.KEY_D, 2.toByte())
+        'E' -> Pair(KeyboardKeyCodes.KEY_E, 2.toByte())
+        'F' -> Pair(KeyboardKeyCodes.KEY_F, 2.toByte())
+        'G' -> Pair(KeyboardKeyCodes.KEY_G, 2.toByte())
+        'H' -> Pair(KeyboardKeyCodes.KEY_H, 2.toByte())
+        'I' -> Pair(KeyboardKeyCodes.KEY_I, 2.toByte())
+        'J' -> Pair(KeyboardKeyCodes.KEY_J, 2.toByte())
+        'K' -> Pair(KeyboardKeyCodes.KEY_K, 2.toByte())
+        'L' -> Pair(KeyboardKeyCodes.KEY_L, 2.toByte())
+        'M' -> Pair(KeyboardKeyCodes.KEY_M, 2.toByte())
+        'N' -> Pair(KeyboardKeyCodes.KEY_N, 2.toByte())
+        'O' -> Pair(KeyboardKeyCodes.KEY_O, 2.toByte())
+        'P' -> Pair(KeyboardKeyCodes.KEY_P, 2.toByte())
+        'Q' -> Pair(KeyboardKeyCodes.KEY_Q, 2.toByte())
+        'R' -> Pair(KeyboardKeyCodes.KEY_R, 2.toByte())
+        'S' -> Pair(KeyboardKeyCodes.KEY_S, 2.toByte())
+        'T' -> Pair(KeyboardKeyCodes.KEY_T, 2.toByte())
+        'U' -> Pair(KeyboardKeyCodes.KEY_U, 2.toByte())
+        'V' -> Pair(KeyboardKeyCodes.KEY_V, 2.toByte())
+        'W' -> Pair(KeyboardKeyCodes.KEY_W, 2.toByte())
+        'X' -> Pair(KeyboardKeyCodes.KEY_X, 2.toByte())
+        'Y' -> Pair(KeyboardKeyCodes.KEY_Y, 2.toByte())
+        'Z' -> Pair(KeyboardKeyCodes.KEY_Z, 2.toByte())
+        '0' -> Pair(KeyboardKeyCodes.KEY_0, 0.toByte())
+        '1' -> Pair(KeyboardKeyCodes.KEY_1, 0.toByte())
+        '2' -> Pair(KeyboardKeyCodes.KEY_2, 0.toByte())
+        '3' -> Pair(KeyboardKeyCodes.KEY_3, 0.toByte())
+        '4' -> Pair(KeyboardKeyCodes.KEY_4, 0.toByte())
+        '5' -> Pair(KeyboardKeyCodes.KEY_5, 0.toByte())
+        '6' -> Pair(KeyboardKeyCodes.KEY_6, 0.toByte())
+        '7' -> Pair(KeyboardKeyCodes.KEY_7, 0.toByte())
+        '8' -> Pair(KeyboardKeyCodes.KEY_8, 0.toByte())
+        '9' -> Pair(KeyboardKeyCodes.KEY_9, 0.toByte())
+        '!' -> Pair(KeyboardKeyCodes.KEY_1, 2.toByte())
+        '@' -> Pair(KeyboardKeyCodes.KEY_2, 2.toByte())
+        '#' -> Pair(KeyboardKeyCodes.KEY_3, 2.toByte())
+        '$' -> Pair(KeyboardKeyCodes.KEY_4, 2.toByte())
+        '%' -> Pair(KeyboardKeyCodes.KEY_5, 2.toByte())
+        '^' -> Pair(KeyboardKeyCodes.KEY_6, 2.toByte())
+        '&' -> Pair(KeyboardKeyCodes.KEY_7, 2.toByte())
+        '*' -> Pair(KeyboardKeyCodes.KEY_8, 2.toByte())
+        '(' -> Pair(KeyboardKeyCodes.KEY_9, 2.toByte())
+        ')' -> Pair(KeyboardKeyCodes.KEY_0, 2.toByte())
+        ' ' -> Pair(KeyboardKeyCodes.KEY_SPACE, 0.toByte())
+        '\n' -> Pair(KeyboardKeyCodes.KEY_ENTER, 0.toByte())
+        '\t' -> Pair(KeyboardKeyCodes.KEY_TAB, 0.toByte())
+        '-' -> Pair(KeyboardKeyCodes.KEY_MINUS, 0.toByte())
+        '_' -> Pair(KeyboardKeyCodes.KEY_MINUS, 2.toByte())
+        '=' -> Pair(KeyboardKeyCodes.KEY_EQUAL, 0.toByte())
+        '+' -> Pair(KeyboardKeyCodes.KEY_EQUAL, 2.toByte())
+        '.' -> Pair(KeyboardKeyCodes.KEY_PERIOD, 0.toByte())
+        ',' -> Pair(KeyboardKeyCodes.KEY_COMMA, 0.toByte())
+        '/' -> Pair(KeyboardKeyCodes.KEY_SLASH, 0.toByte())
+        '?' -> Pair(KeyboardKeyCodes.KEY_SLASH, 2.toByte())
         else -> null
     }
 
@@ -301,7 +412,7 @@ class BluetoothHidManager @Inject constructor(
     }
 
     fun sendMouseButtonUp(button: MouseButton) {
-        sendReport(REPORT_ID_MOUSE, byteArrayOf(0, 0, 0, 0))
+        sendReport(REPORT_ID_MOUSE, byteArrayOf(0, 0, 0, 0.toByte()))
     }
 
     fun sendMouseScroll(amount: Byte) {
@@ -320,15 +431,15 @@ class BluetoothHidManager @Inject constructor(
     }
 
     fun sendGamepadReport(gamepadState: GamepadState) {
-        val report = ByteArray(8)
-        report[0] = gamepadState.dpadDirection.value
-        report[1] = gamepadState.pressedButtons.toByte()
-        report[2] = gamepadState.leftStickX
-        report[3] = gamepadState.leftStickY
-        report[4] = gamepadState.rightStickX
-        report[5] = gamepadState.rightStickY
-        report[6] = gamepadState.leftTrigger
-        report[7] = gamepadState.rightTrigger
+        val report = ByteArray(7)
+        val buttons = gamepadState.pressedButtons
+        report[0] = (buttons and 0xFF).toByte()
+        report[1] = ((buttons shr 8) and 0xFF).toByte()
+        report[2] = gamepadState.dpadDirection.value
+        report[3] = gamepadState.leftStickX
+        report[4] = gamepadState.leftStickY
+        report[5] = gamepadState.rightStickX
+        report[6] = gamepadState.rightStickY
         sendReport(REPORT_ID_GAMEPAD, report)
     }
 
@@ -343,12 +454,29 @@ class BluetoothHidManager @Inject constructor(
 
     fun isHidSupported(): Boolean = _isHidSupported.value
 
+    fun openBluetoothSettings() {
+        val intent = Intent(Settings.ACTION_BLUETOOTH_SETTINGS).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            context.startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
+            context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
+    }
+
     fun currentConnectionState(): ConnectionStateData = _connectionState.value
 
     fun cleanup() {
         unregisterHidApp()
         bluetoothAdapter?.closeProfileProxy(BluetoothProfile.HID_DEVICE, hidDevice)
         hidDevice = null
-        executor.shutdownNow()
+        connectedDevice = null
+        pendingConnectDevice = null
+        proxyRequested = false
+        appRegistrationRequested = false
+        appRegistered = false
+        _isHidSupported.value = false
+        _connectionState.value = ConnectionStateData(ConnectionState.DISCONNECTED)
     }
 }

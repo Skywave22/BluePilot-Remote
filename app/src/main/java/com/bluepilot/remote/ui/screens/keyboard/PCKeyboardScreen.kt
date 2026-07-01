@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.SettingsBluetooth
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SettingsRemote
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,6 +21,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bluepilot.remote.ui.theme.*
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.bluepilot.remote.viewmodel.RemoteControlViewModel
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.draw.clip
@@ -408,8 +411,9 @@ private fun KeyboardKey(
     text: String,
     modifier: Modifier = Modifier
 ) {
+    val remote: RemoteControlViewModel = hiltViewModel()
     Button(
-        onClick = { },
+        onClick = { remote.keyLabel(text) },
         modifier = modifier.height(48.dp),
         shape = RoundedCornerShape(8.dp),
         colors = ButtonDefaults.buttonColors(
@@ -431,8 +435,9 @@ private fun FunctionKey(
     text: String,
     modifier: Modifier = Modifier
 ) {
+    val remote: RemoteControlViewModel = hiltViewModel()
     Button(
-        onClick = { },
+        onClick = { remote.keyLabel(text) },
         modifier = modifier.height(40.dp),
         shape = RoundedCornerShape(8.dp),
         colors = ButtonDefaults.buttonColors(
@@ -453,8 +458,9 @@ private fun ModifierKey(
     text: String,
     modifier: Modifier = Modifier
 ) {
+    val remote: RemoteControlViewModel = hiltViewModel()
     Button(
-        onClick = { },
+        onClick = { remote.keyLabel(text) },
         modifier = modifier.height(48.dp),
         shape = RoundedCornerShape(8.dp),
         colors = ButtonDefaults.buttonColors(
@@ -491,8 +497,9 @@ private fun ArrowKeys(
 private fun ArrowKey(
     text: String
 ) {
+    val remote: RemoteControlViewModel = hiltViewModel()
     Button(
-        onClick = { },
+        onClick = { remote.keyLabel(text) },
         modifier = Modifier.size(32.dp),
         shape = RoundedCornerShape(6.dp),
         colors = ButtonDefaults.buttonColors(
@@ -556,7 +563,7 @@ private fun BottomNavigationBar() {
             onClick = { },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.SettingsBluetooth,
+                    imageVector = Icons.Default.Settings,
                     contentDescription = "Settings"
                 )
             },

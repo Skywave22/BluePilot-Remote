@@ -89,7 +89,8 @@ fun DevicesScreen(
                     message = uiState.statusMessage,
                     isScanning = uiState.isScanning,
                     onScan = viewModel::startScan,
-                    onCancel = viewModel::stopScan
+                    onCancel = viewModel::stopScan,
+                    onOpenBluetoothSettings = viewModel::openBluetoothSettings
                 )
 
                 DeviceSection(
@@ -141,7 +142,8 @@ private fun ScanStatusCard(
     message: String,
     isScanning: Boolean,
     onScan: () -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    onOpenBluetoothSettings: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -177,6 +179,13 @@ private fun ScanStatusCard(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = onOpenBluetoothSettings,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Android BT")
+                }
                 Button(
                     onClick = onScan,
                     enabled = !isScanning,
@@ -287,7 +296,9 @@ private fun DeviceCard(device: RemoteDevice, onConnect: () -> Unit) {
                         color = OnSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall
                     )
-                    if (device.isPaired) {
+                    if (device.isConnected) {
+                        Text("Connected", color = Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    } else if (device.isPaired) {
                         Text("Paired", color = Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                     }
                 }
@@ -295,10 +306,11 @@ private fun DeviceCard(device: RemoteDevice, onConnect: () -> Unit) {
 
             Button(
                 onClick = onConnect,
+                enabled = !device.isConnected,
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = OnPrimary)
             ) {
-                Text("Connect")
+                Text(if (device.isConnected) "Connected" else if (device.isPaired) "Connect" else "Pair")
             }
         }
     }

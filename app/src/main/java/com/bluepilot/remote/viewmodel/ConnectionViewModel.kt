@@ -15,11 +15,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bluepilot.remote.bluetooth.BluetoothHidManager
 import com.bluepilot.remote.model.RemoteDevice
+import com.bluepilot.remote.service.HidService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -35,6 +38,7 @@ class ConnectionViewModel @Inject constructor(
 
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
     private var receiverRegistered = false
+    private var pendingPairConnectAddress: String? = null
 
     private val _uiState = MutableStateFlow(ConnectionUiState())
     val uiState: StateFlow<ConnectionUiState> = _uiState.asStateFlow()
@@ -51,6 +55,33 @@ class ConnectionViewModel @Inject constructor(
                     }
                     device?.let { addDevice(it, paired = false) }
                 }
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
+                    val device: BluetoothDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                    }
+                    device?.let {
+                        addDevice(it, paired = it.bondState == BluetoothDevice.BOND_BONDED)
+                        when (it.bondState) {
+                            BluetoothDevice.BOND_BONDED -> {
+                                _uiState.value = _uiState.value.copy(statusMessage = "Paired with ${safeName(it)}. Starting HID connection now...")
+                                if (pendingPairConnectAddress == null || pendingPairConnectAddress == it.address) {
+                                    pendingPairConnectAddress = null
+                                    connect(it)
+                                }
+                            }
+                            BluetoothDevice.BOND_BONDING -> {
+                                _uiState.value = _uiState.value.copy(statusMessage = "Pairing with ${safeName(it)}... Accept the code/dialog on both devices.")
+                            }
+                            else -> {
+                                if (pendingPairConnectAddress == it.address) pendingPairConnectAddress = null
+                                _uiState.value = _uiState.value.copy(statusMessage = "Pairing ended for ${safeName(it)}. If Windows kept an old BluePilot entry, remove it and pair again.")
+                            }
+                        }
+                    }
+                }
                 BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
                     _uiState.value = _uiState.value.copy(
                         isScanning = false,
@@ -66,8 +97,30 @@ class ConnectionViewModel @Inject constructor(
     }
 
     init {
+        registerReceiverIfNeeded()
         loadPairedDevices()
+        startHidForegroundService()
         hidManager.initialize()
+        hidManager.connectionState.onEach { state ->
+            val deviceName = state.device?.name ?: "device"
+            val message = when (state.state) {
+                com.bluepilot.remote.model.ConnectionState.CONNECTED -> "Connected to $deviceName. You can use mouse, keyboard, media and gamepad controls now."
+                com.bluepilot.remote.model.ConnectionState.CONNECTING -> "Connecting to $deviceName... Accept any pairing/connect dialog on the PC."
+                com.bluepilot.remote.model.ConnectionState.DISCONNECTED -> if (_uiState.value.statusMessage.startsWith("Connecting")) "Disconnected. On Windows, remove old BluePilot pairing, pair again, then click Connect." else _uiState.value.statusMessage
+                com.bluepilot.remote.model.ConnectionState.HID_UNSUPPORTED -> state.errorMessage ?: "This phone/ROM does not support Bluetooth HID Device mode."
+                com.bluepilot.remote.model.ConnectionState.BLUETOOTH_DISABLED -> "Bluetooth is off. Turn it on first."
+                com.bluepilot.remote.model.ConnectionState.ERROR -> state.errorMessage ?: "Bluetooth connection error."
+                else -> _uiState.value.statusMessage
+            }
+            val updatedDevices = _uiState.value.devices.map { device ->
+                if (state.device?.address == device.address) {
+                    device.copy(isConnected = state.state == com.bluepilot.remote.model.ConnectionState.CONNECTED)
+                } else {
+                    device.copy(isConnected = false)
+                }
+            }
+            _uiState.value = _uiState.value.copy(statusMessage = message, devices = updatedDevices)
+        }.launchIn(viewModelScope)
     }
 
     fun startScan() {
@@ -110,10 +163,22 @@ class ConnectionViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(isScanning = false, statusMessage = "Search cancelled.")
     }
 
+    fun prepareHostMode() {
+        startHidForegroundService()
+        hidManager.initialize()
+        hidManager.registerHidApp()
+        _uiState.value = _uiState.value.copy(
+            statusMessage = "Preparing HID host mode. Now make this phone discoverable, then pair from the PC Bluetooth screen."
+        )
+    }
+
     fun markDiscoverabilityRequested() {
+        startHidForegroundService()
+        hidManager.initialize()
+        hidManager.registerHidApp()
         _uiState.value = _uiState.value.copy(
             isDiscoverable = true,
-            statusMessage = "Discoverability request opened. Confirm it in Android system dialog."
+            statusMessage = "HID host mode is ready. On the PC: remove old BluePilot entry, open Bluetooth, add device, select this phone, accept pairing, then wait for Connected."
         )
     }
 
@@ -136,7 +201,33 @@ class ConnectionViewModel @Inject constructor(
     }
 
     fun connectToDevice(device: RemoteDevice) {
+        if (!device.isPaired) {
+            pendingPairConnectAddress = device.address
+            _uiState.value = _uiState.value.copy(statusMessage = "Pairing request sent to ${device.name}. Accept it on the PC; BluePilot will connect automatically after pairing.")
+            pairDevice(device)
+            return
+        }
         connectToAddress(device.address)
+    }
+
+    fun openBluetoothSettings() = hidManager.openBluetoothSettings()
+
+    fun pairDevice(device: RemoteDevice) {
+        val adapter = bluetoothAdapter ?: return
+        if (!BluetoothAdapter.checkBluetoothAddress(device.address)) return
+        try {
+            bluetoothAdapter?.takeIf { it.isDiscovering }?.cancelDiscovery()
+            val bluetoothDevice = adapter.getRemoteDevice(device.address)
+            if (bluetoothDevice.bondState == BluetoothDevice.BOND_BONDED) {
+                connect(bluetoothDevice)
+            } else {
+                bluetoothDevice.createBond()
+            }
+        } catch (e: SecurityException) {
+            _uiState.value = _uiState.value.copy(statusMessage = "Bluetooth permission denied: ${e.message}")
+        } catch (e: Exception) {
+            _uiState.value = _uiState.value.copy(statusMessage = "Pairing error: ${e.message}")
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -144,18 +235,23 @@ class ConnectionViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 bluetoothAdapter?.takeIf { it.isDiscovering }?.cancelDiscovery()
+                startHidForegroundService()
                 _uiState.value = _uiState.value.copy(
                     isScanning = false,
                     statusMessage = "Connecting to ${safeName(device)}..."
                 )
-                hidManager.initialize()
+                val initialized = hidManager.initialize()
+                if (!initialized) {
+                    _uiState.value = _uiState.value.copy(statusMessage = "Could not open Android HID service. This phone may not support Bluetooth HID Device mode.")
+                    return@launch
+                }
                 hidManager.registerHidApp()
                 val started = hidManager.connect(device)
                 _uiState.value = _uiState.value.copy(
                     statusMessage = if (started) {
-                        "Connection request sent to ${safeName(device)}. If it does not connect, pair the device in Android Bluetooth settings first."
+                        "Connecting to ${safeName(device)}... If the PC shows a pairing/request dialog, accept it. If it stays stuck, remove old BluePilot from Windows Bluetooth settings and pair again."
                     } else {
-                        "Connection could not start. Android HID mode may require the other device to initiate pairing/connection."
+                        "Connection could not start. Many PCs require removing old pairing and pairing again from Windows Bluetooth settings."
                     }
                 )
             } catch (e: SecurityException) {
@@ -201,15 +297,28 @@ class ConnectionViewModel @Inject constructor(
     }.getOrDefault("Unknown device")
 
     private fun mergeDevices(a: List<RemoteDevice>, b: List<RemoteDevice>): List<RemoteDevice> =
-        (a + b).filter { it.address.isNotBlank() }.distinctBy { it.address }.sortedWith(
-            compareByDescending<RemoteDevice> { it.isPaired }.thenBy { it.name.lowercase() }
-        )
+        (a + b)
+            .filter { it.address.isNotBlank() }
+            .groupBy { it.address }
+            .map { (_, devices) ->
+                val best = devices.sortedWith(
+                    compareByDescending<RemoteDevice> { it.isConnected }
+                        .thenByDescending { it.isPaired }
+                        .thenByDescending { it.name != "Unknown device" }
+                ).first()
+                best.copy(
+                    isConnected = devices.any { it.isConnected },
+                    isPaired = devices.any { it.isPaired }
+                )
+            }
+            .sortedWith(compareByDescending<RemoteDevice> { it.isConnected }.thenByDescending { it.isPaired }.thenBy { it.name.lowercase() })
 
     private fun registerReceiverIfNeeded() {
         if (receiverRegistered) return
         val filter = IntentFilter().apply {
             addAction(BluetoothDevice.ACTION_FOUND)
             addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+            addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.registerReceiver(discoveryReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
@@ -225,6 +334,20 @@ class ConnectionViewModel @Inject constructor(
                 ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
         } else {
             ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    private fun startHidForegroundService() {
+        try {
+            val intent = Intent(context, HidService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ContextCompat.startForegroundService(context, intent)
+            } else {
+                context.startService(intent)
+            }
+        } catch (e: Exception) {
+            // Do not block connection; some Android versions restrict service starts.
+            _uiState.value = _uiState.value.copy(statusMessage = _uiState.value.statusMessage)
         }
     }
 

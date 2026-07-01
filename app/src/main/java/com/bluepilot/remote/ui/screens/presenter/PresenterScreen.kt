@@ -3,6 +3,7 @@
 package com.bluepilot.remote.ui.screens.presenter
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SettingsBluetooth
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SettingsRemote
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.*
@@ -23,10 +25,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bluepilot.remote.ui.theme.*
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.bluepilot.remote.viewmodel.RemoteControlViewModel
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.platform.LocalConfiguration
 
@@ -36,7 +41,8 @@ import androidx.compose.ui.platform.LocalConfiguration
  */
 @Composable
 fun PresenterScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    remote: RemoteControlViewModel = hiltViewModel()
 ) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
@@ -56,9 +62,9 @@ fun PresenterScreen(
             )
 
             if (isLandscape) {
-                LandscapeContent()
+                LandscapeContent(remote)
             } else {
-                PortraitContent()
+                PortraitContent(remote)
             }
         }
 
@@ -125,7 +131,7 @@ private fun TopAppBar(
 }
 
 @Composable
-private fun PortraitContent() {
+private fun PortraitContent(remote: RemoteControlViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -134,16 +140,19 @@ private fun PortraitContent() {
     ) {
         // Previous/Next buttons
         SlideNavigationCard(
+            remote = remote,
             modifier = Modifier.fillMaxWidth()
         )
 
         // Presentation controls
         PresentationControlsCard(
+            remote = remote,
             modifier = Modifier.fillMaxWidth()
         )
 
         // Touchpad
         TouchpadCard(
+            remote = remote,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -152,11 +161,15 @@ private fun PortraitContent() {
 }
 
 @Composable
-private fun LandscapeContent() {
-    Row(
+private fun LandscapeContent(remote: RemoteControlViewModel) {
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(16.dp)
+    ) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize(),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Left half: Previous slide
@@ -168,7 +181,7 @@ private fun LandscapeContent() {
             LargeSlideButton(
                 text = "Previous",
                 icon = Icons.Default.ArrowBack,
-                onClick = { },
+                onClick = { remote.keyLabel("Left") },
                 modifier = Modifier.fillMaxSize()
             )
         }
@@ -182,7 +195,7 @@ private fun LandscapeContent() {
             LargeSlideButton(
                 text = "Next",
                 icon = Icons.Default.ArrowForward,
-                onClick = { },
+                onClick = { remote.keyLabel("Right") },
                 modifier = Modifier.fillMaxSize()
             )
         }
@@ -203,26 +216,28 @@ private fun LandscapeContent() {
         ) {
             CompactControlButton(
                 text = "Start",
-                onClick = { }
+                onClick = { remote.keyLabel("F5") }
             )
             CompactControlButton(
                 text = "Esc",
-                onClick = { }
+                onClick = { remote.escape() }
             )
             CompactControlButton(
                 text = "Blank",
-                onClick = { }
+                onClick = { remote.keyLabel("B") }
             )
             CompactControlButton(
                 icon = Icons.Default.TouchApp,
-                onClick = { }
+                onClick = { remote.mouseClick() }
             )
         }
+    }
     }
 }
 
 @Composable
 private fun SlideNavigationCard(
+    remote: RemoteControlViewModel,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -242,7 +257,7 @@ private fun SlideNavigationCard(
             LargeSlideButton(
                 text = "Previous",
                 icon = Icons.Default.ArrowBack,
-                onClick = { },
+                onClick = { remote.keyLabel("Left") },
                 modifier = Modifier.weight(1f)
             )
             
@@ -251,7 +266,7 @@ private fun SlideNavigationCard(
             LargeSlideButton(
                 text = "Next",
                 icon = Icons.Default.ArrowForward,
-                onClick = { },
+                onClick = { remote.keyLabel("Right") },
                 modifier = Modifier.weight(1f)
             )
         }
@@ -260,6 +275,7 @@ private fun SlideNavigationCard(
 
 @Composable
 private fun PresentationControlsCard(
+    remote: RemoteControlViewModel,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -278,22 +294,22 @@ private fun PresentationControlsCard(
         ) {
             PresentationButton(
                 text = "Start",
-                onClick = { }
+                onClick = { remote.keyLabel("F5") }
             )
             
             PresentationButton(
                 text = "Esc",
-                onClick = { }
+                onClick = { remote.escape() }
             )
             
             PresentationButton(
                 text = "Blank",
-                onClick = { }
+                onClick = { remote.keyLabel("B") }
             )
             
             PresentationButton(
                 icon = Icons.Default.TouchApp,
-                onClick = { }
+                onClick = { remote.mouseClick() }
             )
         }
     }
@@ -301,10 +317,16 @@ private fun PresentationControlsCard(
 
 @Composable
 private fun TouchpadCard(
+    remote: RemoteControlViewModel,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier,
+        modifier = modifier.pointerInput(Unit) {
+            detectDragGestures { change, dragAmount ->
+                change.consume()
+                remote.mouseMove(dragAmount.x, dragAmount.y)
+            }
+        },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = PrimaryContainer.copy(alpha = 0.2f)
@@ -479,7 +501,7 @@ private fun BottomNavigationBar() {
             onClick = { },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.SettingsBluetooth,
+                    imageVector = Icons.Default.Settings,
                     contentDescription = "Settings"
                 )
             },

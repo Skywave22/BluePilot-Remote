@@ -188,6 +188,7 @@ object KeyboardKeyCodes {
     const val KEY_DOWN_ARROW: Byte = 0x51
     const val KEY_UP_ARROW: Byte = 0x52
     const val KEY_NUM_LOCK: Byte = 0x53
+    const val KEY_APPLICATION: Byte = 0x65
     const val KEY_KP_DIVIDE: Byte = 0x54
     const val KEY_KP_MULTIPLY: Byte = 0x55
     const val KEY_KP_MINUS: Byte = 0x56

@@ -24,6 +24,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bluepilot.remote.ui.theme.*
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.bluepilot.remote.model.DpadDirection
+import com.bluepilot.remote.model.GamepadButton
+import com.bluepilot.remote.viewmodel.RemoteControlViewModel
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.platform.LocalConfiguration
 
@@ -82,7 +86,7 @@ private fun PortraitGamepad(
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
-            onClick = { },
+            onClick = onNavigateBack,
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Primary,
@@ -240,8 +244,10 @@ private fun ShoulderButton(
     text: String,
     modifier: Modifier = Modifier
 ) {
+    val remote: RemoteControlViewModel = hiltViewModel()
+    val button = if (text.contains("R")) GamepadButton.R1 else GamepadButton.L1
     Button(
-        onClick = { },
+        onClick = { remote.gamepadButton(button) },
         modifier = modifier.height(40.dp),
         shape = RoundedCornerShape(8.dp),
         colors = ButtonDefaults.buttonColors(
@@ -262,8 +268,10 @@ private fun ShoulderButton(
 private fun SmallButton(
     text: String
 ) {
+    val remote: RemoteControlViewModel = hiltViewModel()
+    val button = if (text.uppercase().contains("START")) GamepadButton.START else GamepadButton.SELECT
     Button(
-        onClick = { },
+        onClick = { remote.gamepadButton(button) },
         modifier = Modifier.size(48.dp),
         shape = CircleShape,
         colors = ButtonDefaults.buttonColors(
@@ -347,8 +355,16 @@ private fun DPadButton(
     icon: String,
     modifier: Modifier = Modifier
 ) {
+    val remote: RemoteControlViewModel = hiltViewModel()
+    val direction = when (icon) {
+        "↑" -> DpadDirection.UP
+        "↓" -> DpadDirection.DOWN
+        "←" -> DpadDirection.LEFT
+        "→" -> DpadDirection.RIGHT
+        else -> DpadDirection.NONE
+    }
     Button(
-        onClick = { },
+        onClick = { remote.dpad(direction) },
         modifier = modifier.size(40.dp),
         shape = CircleShape,
         colors = ButtonDefaults.buttonColors(
@@ -404,8 +420,16 @@ private fun ActionButton(
     text: String,
     modifier: Modifier = Modifier
 ) {
+    val remote: RemoteControlViewModel = hiltViewModel()
+    val button = when (text.uppercase()) {
+        "A" -> GamepadButton.A
+        "B" -> GamepadButton.B
+        "X" -> GamepadButton.X
+        "Y" -> GamepadButton.Y
+        else -> GamepadButton.A
+    }
     Button(
-        onClick = { },
+        onClick = { remote.gamepadButton(button) },
         modifier = modifier.size(48.dp),
         shape = CircleShape,
         colors = ButtonDefaults.buttonColors(

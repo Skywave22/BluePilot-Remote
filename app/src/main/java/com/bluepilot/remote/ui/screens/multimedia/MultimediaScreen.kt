@@ -3,6 +3,7 @@
 package com.bluepilot.remote.ui.screens.multimedia
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SettingsBluetooth
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SettingsRemote
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
@@ -28,9 +30,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bluepilot.remote.ui.theme.*
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.bluepilot.remote.viewmodel.RemoteControlViewModel
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.platform.LocalConfiguration
 
@@ -40,7 +45,8 @@ import androidx.compose.ui.platform.LocalConfiguration
  */
 @Composable
 fun MultimediaScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    remote: RemoteControlViewModel = hiltViewModel()
 ) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
@@ -60,9 +66,9 @@ fun MultimediaScreen(
             )
 
             if (isLandscape) {
-                LandscapeContent()
+                LandscapeContent(remote)
             } else {
-                PortraitContent()
+                PortraitContent(remote)
             }
         }
 
@@ -129,7 +135,7 @@ private fun TopAppBar(
 }
 
 @Composable
-private fun PortraitContent() {
+private fun PortraitContent(remote: RemoteControlViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -143,6 +149,7 @@ private fun PortraitContent() {
 
         // Touchpad
         TouchpadCard(
+            remote = remote,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -164,7 +171,7 @@ private fun PortraitContent() {
 }
 
 @Composable
-private fun LandscapeContent() {
+private fun LandscapeContent(remote: RemoteControlViewModel) {
     Row(
         modifier = Modifier
             .fillMaxSize()
@@ -188,6 +195,7 @@ private fun LandscapeContent() {
 
         // Center zone: Touchpad
         TouchpadCard(
+            remote = remote,
             modifier = Modifier
                 .weight(0.35f)
                 .fillMaxHeight()
@@ -214,6 +222,7 @@ private fun LandscapeContent() {
 private fun MediaControlsCard(
     modifier: Modifier = Modifier
 ) {
+    val remote: RemoteControlViewModel = hiltViewModel()
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
@@ -242,27 +251,27 @@ private fun MediaControlsCard(
             ) {
                 MediaButton(
                     icon = Icons.Default.SkipPrevious,
-                    onClick = { }
+                    onClick = { remote.mediaPrevious() }
                 )
                 
                 MediaButton(
                     icon = Icons.Default.FastRewind,
-                    onClick = { }
+                    onClick = { remote.mediaPrevious() }
                 )
                 
                 PlayPauseButton(
                     isPlaying = false,
-                    onClick = { }
+                    onClick = { remote.mediaPlayPause() }
                 )
                 
                 MediaButton(
                     icon = Icons.Default.FastForward,
-                    onClick = { }
+                    onClick = { remote.mediaNext() }
                 )
                 
                 MediaButton(
                     icon = Icons.Default.SkipNext,
-                    onClick = { }
+                    onClick = { remote.mediaNext() }
                 )
             }
         }
@@ -273,6 +282,7 @@ private fun MediaControlsCard(
 private fun VolumeControlsCard(
     modifier: Modifier = Modifier
 ) {
+    val remote: RemoteControlViewModel = hiltViewModel()
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
@@ -301,17 +311,17 @@ private fun VolumeControlsCard(
             ) {
                 MediaButton(
                     icon = Icons.Default.VolumeDown,
-                    onClick = { }
+                    onClick = { remote.volumeDown() }
                 )
                 
                 MediaButton(
                     icon = Icons.Default.VolumeMute,
-                    onClick = { }
+                    onClick = { remote.mute() }
                 )
                 
                 MediaButton(
                     icon = Icons.Default.VolumeUp,
-                    onClick = { }
+                    onClick = { remote.volumeUp() }
                 )
             }
         }
@@ -320,10 +330,16 @@ private fun VolumeControlsCard(
 
 @Composable
 private fun TouchpadCard(
+    remote: RemoteControlViewModel,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier,
+        modifier = modifier.pointerInput(Unit) {
+            detectDragGestures { change, dragAmount ->
+                change.consume()
+                remote.mouseMove(dragAmount.x, dragAmount.y)
+            }
+        },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = PrimaryContainer.copy(alpha = 0.2f)
@@ -358,6 +374,7 @@ private fun TouchpadCard(
 private fun DPadCard(
     modifier: Modifier = Modifier
 ) {
+    val remote: RemoteControlViewModel = hiltViewModel()
     Card(
         modifier = modifier.aspectRatio(1f),
         shape = RoundedCornerShape(16.dp),
@@ -377,7 +394,7 @@ private fun DPadCard(
             ) {
                 DPadButton(
                     icon = Icons.Default.ArrowBack,
-                    onClick = { }
+                    onClick = { remote.keyLabel("Up") }
                 )
                 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -388,7 +405,7 @@ private fun DPadCard(
                 ) {
                     DPadButton(
                         icon = Icons.Default.ArrowBack,
-                        onClick = { }
+                        onClick = { remote.keyLabel("Left") }
                     )
                     
                     Box(
@@ -400,7 +417,7 @@ private fun DPadCard(
                     
                     DPadButton(
                         icon = Icons.Default.ArrowForward,
-                        onClick = { }
+                        onClick = { remote.keyLabel("Right") }
                     )
                 }
                 
@@ -408,7 +425,7 @@ private fun DPadCard(
                 
                 DPadButton(
                     icon = Icons.Default.ArrowForward,
-                    onClick = { }
+                    onClick = { remote.keyLabel("Down") }
                 )
             }
         }
@@ -419,6 +436,7 @@ private fun DPadCard(
 private fun NavigationCard(
     modifier: Modifier = Modifier
 ) {
+    val remote: RemoteControlViewModel = hiltViewModel()
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
@@ -444,9 +462,9 @@ private fun NavigationCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                NavButton(text = "Back", onClick = { })
-                NavButton(text = "Home", onClick = { })
-                NavButton(text = "Menu", onClick = { })
+                NavButton(text = "Back", onClick = { remote.keyLabel("Back") })
+                NavButton(text = "Home", onClick = { remote.keyLabel("Home") })
+                NavButton(text = "Menu", onClick = { remote.keyLabel("Menu") })
             }
         }
     }
@@ -456,6 +474,7 @@ private fun NavigationCard(
 private fun PlayPauseCard(
     modifier: Modifier = Modifier
 ) {
+    val remote: RemoteControlViewModel = hiltViewModel()
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
@@ -470,7 +489,7 @@ private fun PlayPauseCard(
         ) {
             PlayPauseButton(
                 isPlaying = false,
-                onClick = { },
+                onClick = { remote.mediaPlayPause() },
                 large = true
             )
         }
@@ -609,7 +628,7 @@ private fun BottomNavigationBar() {
             onClick = { },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.SettingsBluetooth,
+                    imageVector = Icons.Default.Settings,
                     contentDescription = "Settings"
                 )
             },

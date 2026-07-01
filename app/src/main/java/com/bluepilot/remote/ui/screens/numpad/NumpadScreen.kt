@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.KeyboardTab
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.SettingsBluetooth
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SettingsRemote
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,6 +26,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bluepilot.remote.ui.theme.*
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.bluepilot.remote.viewmodel.RemoteControlViewModel
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.platform.LocalConfiguration
 
@@ -286,8 +289,9 @@ private fun NumpadKey(
     isPrimary: Boolean = false,
     isSpecial: Boolean = false
 ) {
+    val remote: RemoteControlViewModel = hiltViewModel()
     Button(
-        onClick = { },
+        onClick = { remote.keyLabel(text) },
         modifier = modifier.height(56.dp),
         shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.buttonColors(
@@ -335,8 +339,9 @@ private fun QuickShortcutCard(
     subtitle: String,
     modifier: Modifier = Modifier
 ) {
+    val remote: RemoteControlViewModel = hiltViewModel()
     Card(
-        onClick = { },
+        onClick = { remote.keyLabel(title) },
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
@@ -432,7 +437,7 @@ private fun BottomNavigationBar() {
             onClick = { },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.SettingsBluetooth,
+                    imageVector = Icons.Default.Settings,
                     contentDescription = "Settings"
                 )
             },
