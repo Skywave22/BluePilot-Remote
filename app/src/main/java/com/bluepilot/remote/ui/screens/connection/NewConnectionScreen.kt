@@ -648,7 +648,3 @@ private fun formatMacAddress(input: String): String {
     return formatted.toString()
 }
 
-// Modifier for alpha
-private fun Modifier.alpha(alpha: Float): Modifier = this.then(
-    androidx.compose.ui.draw.alpha(alpha)
-)
