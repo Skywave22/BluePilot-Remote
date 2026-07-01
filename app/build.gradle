@@ -24,7 +24,12 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled true
+            // Installable CI release APK. This uses the debug signing key so GitHub can
+            // produce an APK that installs on phones without private keystore secrets.
+            // For Play Store publishing, replace this with your own release keystore.
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
