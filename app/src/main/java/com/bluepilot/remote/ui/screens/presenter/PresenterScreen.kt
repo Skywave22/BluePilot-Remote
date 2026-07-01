@@ -456,10 +456,10 @@ private fun BottomNavigationBar() {
             icon = {
                 Icon(
                     imageVector = Icons.Default.SettingsBluetooth,
-                    contentDescription = "Terminal"
+                    contentDescription = "Keyboard"
                 )
             },
-            label = { Text("Terminal") }
+            label = { Text("Keyboard") }
         )
 
         NavigationBarItem(

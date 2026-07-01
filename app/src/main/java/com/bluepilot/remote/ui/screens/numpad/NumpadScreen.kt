@@ -409,10 +409,10 @@ private fun BottomNavigationBar() {
             icon = {
                 Icon(
                     imageVector = Icons.Default.SettingsBluetooth,
-                    contentDescription = "Terminal"
+                    contentDescription = "Keyboard"
                 )
             },
-            label = { Text("Terminal") }
+            label = { Text("Keyboard") }
         )
 
         NavigationBarItem(
@@ -421,10 +421,10 @@ private fun BottomNavigationBar() {
             icon = {
                 Icon(
                     imageVector = Icons.Default.SettingsBluetooth,
-                    contentDescription = "Macros"
+                    contentDescription = "Gamepad"
                 )
             },
-            label = { Text("Macros") }
+            label = { Text("Gamepad") }
         )
 
         NavigationBarItem(

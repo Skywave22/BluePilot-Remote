@@ -2,142 +2,132 @@
 
 package com.bluepilot.remote.ui.screens.devices
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.BluetoothSearching
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.bluepilot.remote.ui.theme.*
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.bluepilot.remote.model.RemoteDevice
+import com.bluepilot.remote.ui.theme.Background
+import com.bluepilot.remote.ui.theme.OnPrimary
+import com.bluepilot.remote.ui.theme.OnPrimaryContainer
+import com.bluepilot.remote.ui.theme.OnSurface
+import com.bluepilot.remote.ui.theme.OnSurfaceVariant
+import com.bluepilot.remote.ui.theme.OutlineVariant
+import com.bluepilot.remote.ui.theme.Primary
+import com.bluepilot.remote.ui.theme.PrimaryContainer
+import com.bluepilot.remote.ui.theme.SurfaceContainerHighest
+import com.bluepilot.remote.ui.theme.SurfaceContainerLow
+import com.bluepilot.remote.viewmodel.ConnectionViewModel
 
 /**
- * Bluetooth Devices screen for managing paired devices
- * Placeholder implementation
+ * Real Bluetooth devices screen.
+ * Shows paired/found devices from ConnectionViewModel instead of fake placeholder cards.
  */
 @Composable
 fun DevicesScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: ConnectionViewModel = hiltViewModel()
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            // Top App Bar
-            TopAppBar(
-                onNavigateBack = onNavigateBack
-            )
+    val uiState by viewModel.uiState.collectAsState()
+    val paired = uiState.devices.filter { it.isPaired }
+    val available = uiState.devices.filterNot { it.isPaired }
 
-            // Devices List
+    Box(
+        modifier = Modifier.fillMaxSize().background(Background)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            TopAppBar(onNavigateBack = onNavigateBack)
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
                     .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Paired Devices Section
-                Text(
-                    text = "Paired Devices",
-                    color = Primary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium
+                ScanStatusCard(
+                    message = uiState.statusMessage,
+                    isScanning = uiState.isScanning,
+                    onScan = viewModel::startScan,
+                    onCancel = viewModel::stopScan
                 )
 
-                DeviceCard(
-                    name = "Desktop PC",
-                    address = "00:1A:2B:3C:4D:5E",
-                    isConnected = true,
-                    onConnect = { },
-                    onForget = { }
+                DeviceSection(
+                    title = "Paired devices",
+                    subtitle = "Devices already paired in Android Bluetooth settings",
+                    devices = paired,
+                    emptyText = "No paired devices found. Pair your PC/TV/tablet in Android Bluetooth settings first if direct connect fails.",
+                    onConnect = viewModel::connectToDevice
                 )
 
-                DeviceCard(
-                    name = "Laptop",
-                    address = "00:1A:2B:3C:4D:5F",
-                    isConnected = false,
-                    onConnect = { },
-                    onForget = { }
+                DeviceSection(
+                    title = "Available devices",
+                    subtitle = "Devices found during the current scan",
+                    devices = available,
+                    emptyText = if (uiState.isScanning) "Scanning nearby Bluetooth devices..." else "Tap Scan for devices to search nearby devices.",
+                    onConnect = viewModel::connectToDevice
                 )
 
-                // Available Devices Section
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Available Devices",
-                    color = Primary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium
-                )
-
-                DeviceCard(
-                    name = "Smart TV",
-                    address = "00:1A:2B:3C:4D:60",
-                    isConnected = false,
-                    onConnect = { },
-                    onForget = { }
-                )
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // Scan Button
-                Button(
-                    onClick = { },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Primary,
-                        contentColor = OnPrimary
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = null
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Scan for devices")
-                }
+                Spacer(modifier = Modifier.height(48.dp))
             }
         }
     }
 }
 
 @Composable
-private fun TopAppBar(
-    onNavigateBack: () -> Unit
-) {
+private fun TopAppBar(onNavigateBack: () -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onNavigateBack) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
-                    tint = Primary
-                )
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Primary)
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Bluetooth Devices",
+                text = "Bluetooth devices",
                 color = Primary,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
@@ -147,44 +137,138 @@ private fun TopAppBar(
 }
 
 @Composable
-private fun DeviceCard(
-    name: String,
-    address: String,
-    isConnected: Boolean,
-    onConnect: () -> Unit,
-    onForget: () -> Unit
+private fun ScanStatusCard(
+    message: String,
+    isScanning: Boolean,
+    onScan: () -> Unit,
+    onCancel: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainerLow),
+        border = BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.2f))
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)).background(PrimaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isScanning) {
+                        CircularProgressIndicator(modifier = Modifier.size(28.dp), color = Primary, strokeWidth = 3.dp)
+                    } else {
+                        Icon(Icons.Default.BluetoothSearching, contentDescription = null, tint = OnPrimaryContainer)
+                    }
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = if (isScanning) "Scanning devices" else "Device scanner",
+                        color = OnSurface,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(message, color = OnSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = onScan,
+                    enabled = !isScanning,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = OnPrimary)
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (isScanning) "Scanning" else "Scan")
+                }
+                OutlinedButton(
+                    onClick = onCancel,
+                    enabled = isScanning,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Cancel")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeviceSection(
+    title: String,
+    subtitle: String,
+    devices: List<RemoteDevice>,
+    emptyText: String,
+    onConnect: (RemoteDevice) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column {
+            Text(title, color = Primary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(subtitle, color = OnSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        }
+
+        if (devices.isEmpty()) {
+            EmptyDeviceCard(emptyText)
+        } else {
+            devices.forEach { device ->
+                DeviceCard(device = device, onConnect = { onConnect(device) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyDeviceCard(text: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = SurfaceContainerLow
-        )
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainerLow),
+        border = BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.12f))
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(22.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(Icons.Default.Bluetooth, contentDescription = null, tint = OnSurfaceVariant, modifier = Modifier.size(36.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(text, color = OnSurfaceVariant, textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+private fun DeviceCard(device: RemoteDevice, onConnect: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceContainerLow),
+        border = BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.16f))
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                 Box(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            if (isConnected) PrimaryContainer else SurfaceContainerHighest
-                        ),
+                        .background(if (device.isPaired) PrimaryContainer else SurfaceContainerHighest),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Bluetooth,
+                        imageVector = if (device.isPaired) Icons.Default.CheckCircle else Icons.Default.Bluetooth,
                         contentDescription = null,
-                        tint = if (isConnected) OnPrimaryContainer else OnSurfaceVariant,
+                        tint = if (device.isPaired) OnPrimaryContainer else OnSurfaceVariant,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -193,59 +277,28 @@ private fun DeviceCard(
 
                 Column {
                     Text(
-                        text = name,
+                        text = device.name.ifBlank { "Unknown device" },
                         color = OnSurface,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = address,
+                        text = device.address,
                         color = OnSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall
                     )
+                    if (device.isPaired) {
+                        Text("Paired", color = Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Button(
+                onClick = onConnect,
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = OnPrimary)
             ) {
-                if (isConnected) {
-                    Surface(
-                        shape = CircleShape,
-                        color = Color(0xFF10B981).copy(alpha = 0.2f)
-                    ) {
-                        Box(
-                            modifier = Modifier.padding(8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF10B981))
-                            )
-                        }
-                    }
-                } else {
-                    Button(
-                        onClick = onConnect,
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Primary,
-                            contentColor = OnPrimary
-                        )
-                    ) {
-                        Text("Connect")
-                    }
-                }
-
-                IconButton(onClick = onForget) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Forget",
-                        tint = Error
-                    )
-                }
+                Text("Connect")
             }
         }
     }
