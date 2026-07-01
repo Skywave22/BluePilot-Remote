@@ -32,8 +32,7 @@ val OnTertiary = Color(0xFF502402)
 val OnBackground = Color(0xFFE0E3E3)
 val OnSurface = Color(0xFFE0E3E3)
 val OnSurfaceVariant = Color(0xFFBEC8C9)
-val onError = Color(0xFF690005)
-val OnError = onError
+val OnError = Color(0xFF690005)
 
 // Container colors
 val PrimaryContainer = Color(0xFF006064)

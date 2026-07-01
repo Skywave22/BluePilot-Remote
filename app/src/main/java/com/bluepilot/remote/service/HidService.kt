@@ -213,7 +213,7 @@ class HidService : Service() {
     /**
      * Get Bluetooth HID manager instance
      */
-    fun getBluetoothHidManager(): BluetoothHidManager {
+    fun obtainBluetoothHidManager(): BluetoothHidManager {
         return bluetoothHidManager
     }
 
