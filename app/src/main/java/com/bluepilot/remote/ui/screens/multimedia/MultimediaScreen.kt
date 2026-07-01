@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.bluepilot.remote.ui.screens.multimedia
 
 import androidx.compose.foundation.background
@@ -29,6 +31,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bluepilot.remote.ui.theme.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.platform.LocalConfiguration
 
 /**
  * Multimedia screen with media controls, D-pad, and touchpad

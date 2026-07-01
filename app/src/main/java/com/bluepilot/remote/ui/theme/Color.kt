@@ -24,7 +24,6 @@ val SurfaceVariant = Color(0xFF323536)
 
 // Error colors
 val Error = Color(0xFFFFB4AB)
-val ErrorContainer = Color(0xFF93000A)
 
 // Text colors
 val OnPrimary = Color(0xFFFFFFFF)
@@ -34,6 +33,7 @@ val OnBackground = Color(0xFFE0E3E3)
 val OnSurface = Color(0xFFE0E3E3)
 val OnSurfaceVariant = Color(0xFFBEC8C9)
 val onError = Color(0xFF690005)
+val OnError = onError
 
 // Container colors
 val PrimaryContainer = Color(0xFF006064)

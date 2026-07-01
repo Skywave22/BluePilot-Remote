@@ -107,6 +107,8 @@ object KeyboardModifiers {
  * HID keyboard key codes (subset of common keys)
  */
 object KeyboardKeyCodes {
+    const val KEY_LEFT_CTRL: Byte = 0xE0.toByte()
+    const val KEY_LEFT_SHIFT: Byte = 0xE1.toByte()
     const val KEY_A: Byte = 0x04
     const val KEY_B: Byte = 0x05
     const val KEY_C: Byte = 0x06

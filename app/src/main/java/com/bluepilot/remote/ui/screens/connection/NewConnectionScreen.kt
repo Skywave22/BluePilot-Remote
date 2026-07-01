@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.bluepilot.remote.ui.screens.connection
 
 import androidx.compose.animation.AnimatedVisibility
@@ -14,7 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.BluetoothDisabled
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Radar
@@ -31,10 +33,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.toUpperCase
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bluepilot.remote.ui.theme.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.draw.alpha
 
 /**
  * New Connection screen with three connection options:
@@ -120,7 +123,7 @@ private fun TopAppBar(
         ) {
             IconButton(onClick = onNavigateBack) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    imageVector = Icons.Filled.ArrowBack,
                     contentDescription = "Back",
                     tint = Primary
                 )
@@ -532,12 +535,13 @@ private fun MacAddressCard(
             // MAC Address Input
             OutlinedTextField(
                 value = macAddress,
-                onValueChange = onMacAddressChange,
+                onValueChange = { value ->
+                    if (value.length <= 17) onMacAddressChange(value.uppercase())
+                },
                 label = { Text("MAC Address") },
                 placeholder = { Text("XX:XX:XX:XX:XX:XX") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                maxLength = 17,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                 shape = RoundedCornerShape(8.dp),
                 colors = OutlinedTextFieldDefaults.colors(

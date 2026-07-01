@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.bluepilot.remote.ui.screens.mouse
 
 import androidx.compose.foundation.background
@@ -29,6 +31,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bluepilot.remote.ui.theme.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 
 /**
  * Mouse/Keyboard screen with touchpad interface
@@ -330,20 +334,10 @@ private fun TouchpadArea(
                         },
                         onDrag = { change, dragAmount ->
                             change.consume()
-                            // Send mouse movement based on drag amount
-                            // In real implementation, this would call BluetoothHidManager.sendMouseMove()
+                            // Send mouse movement based on drag amount.
                             lastPosition += dragAmount
                         }
-                    ) {
-                        detectTapGestures(
-                            onTap = {
-                                // Left click
-                            },
-                            onDoubleTap = {
-                                // Double click
-                            }
-                        )
-                    }
+                    )
                 }
         ) {
             // Center mouse icon

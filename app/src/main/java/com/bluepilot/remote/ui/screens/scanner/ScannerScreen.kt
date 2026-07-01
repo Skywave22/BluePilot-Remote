@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.bluepilot.remote.ui.screens.scanner
 
 import androidx.compose.foundation.background
@@ -14,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bluepilot.remote.ui.theme.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 /**
  * Code Scanner screen for QR/barcode scanning

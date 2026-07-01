@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.bluepilot.remote.ui.screens.settings
 
 import androidx.compose.foundation.background
@@ -25,6 +27,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bluepilot.remote.model.ThemeMode
 import com.bluepilot.remote.ui.theme.*
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 
 /**
  * Settings screen with multiple tabs for different settings categories
@@ -56,7 +60,7 @@ fun SettingsScreen(
                 containerColor = SurfaceContainer,
                 contentColor = Primary,
                 indicator = { tabPositions ->
-                    TabRowDefaults.SecondaryIndicator(
+                    TabRowDefaults.Indicator(
                         modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
                         color = Primary
                     )
