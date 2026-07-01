@@ -2,14 +2,23 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ "main", "master" ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ "main", "master" ]
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
 
 jobs:
   build:
+    name: Compile and Build APKs
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
       - name: Checkout code
@@ -21,35 +30,71 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Download Gradle wrapper
-        run: curl -L https://raw.githubusercontent.com/gradle/gradle/v8.4.0/gradle/wrapper/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses >/dev/null 2>&1 || true
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+        run: chmod +x ./gradlew || true
+
+      - name: Check Gradle wrapper
+        run: |
+          test -f gradle/wrapper/gradle-wrapper.jar
+          ./gradlew --version --no-daemon
+
+      - name: Compile Kotlin
+        run: ./gradlew :app:compileDebugKotlin --stacktrace --no-daemon
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew :app:assembleDebug --stacktrace --no-daemon
 
-      - name: Build Release APK
-        run: ./gradlew assembleRelease --stacktrace
+      - name: Build signed release APK
+        run: ./gradlew :app:assembleRelease --stacktrace --no-daemon
 
-      - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
-
-      - name: Upload Release APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release
-          path: app/build/outputs/apk/release/app-release-unsigned.apk
-          retention-days: 30
-
-      - name: Get APK info
+      - name: Collect APKs
+        if: success()
         run: |
-          echo "Debug APK size:"
-          ls -lh app/build/outputs/apk/debug/app-debug.apk || echo "Debug APK not found"
-          echo "Release APK size:"
-          ls -lh app/build/outputs/apk/release/app-release-unsigned.apk || echo "Release APK not found"
+          mkdir -p apks
+          cp app/build/outputs/apk/debug/app-debug.apk apks/BluePilot-Remote-debug.apk
+          cp app/build/outputs/apk/release/app-release.apk apks/BluePilot-Remote-release-signed.apk
+          ls -lh apks
+
+      - name: Upload APK artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BluePilot-Remote-APKs
+          path: apks/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish APKs to Releases
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: BluePilot Remote APKs (build ${{ github.run_number }})
+          body: |
+            Automated GitHub Actions build.
+
+            Download:
+            - BluePilot-Remote-debug.apk: debug build, signed automatically.
+            - BluePilot-Remote-release-signed.apk: installable release build signed with the CI debug key.
+          files: apks/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload build reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-reports
+          path: |
+            app/build/reports/
+            build/reports/
+          if-no-files-found: ignore
